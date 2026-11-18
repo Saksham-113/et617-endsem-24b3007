@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, ShieldCheck, Sparkles, Cpu, Clock, HelpCircle } from "lucide-react";
+import { ArrowLeft, BookOpen, ShieldCheck, Sparkles, Cpu, Clock, HelpCircle, Terminal } from "lucide-react";
 import Footer from "@/components/Footer";
 
 export default function AboutPage() {
@@ -131,6 +131,33 @@ export default function AboutPage() {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </section>
+
+        {/* Live In-Browser Python Execution Engine */}
+        <section className="bg-white rounded-2xl border border-slate-200/90 p-6 shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <Terminal className="w-4 h-4 text-indigo-600" />
+            <h2 className="text-sm font-bold text-slate-900">
+              Live In-Browser Python 3 Runtime (Pyodide WebAssembly)
+            </h2>
+          </div>
+          <p className="text-slate-600 leading-relaxed text-xs">
+            To provide instant feedback and reduce fear of code execution for repeating learners (<code>L5</code>), LoopStep embeds a full client-side Python 3 runtime powered by Pyodide:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              <strong className="text-slate-800 block text-xs">Real Python Execution:</strong>
+              <p className="text-[11px] text-slate-500 mt-1">Executes real Python 3 via WebAssembly in the browser with captured <code>sys.stdout</code> and <code>sys.stderr</code>.</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              <strong className="text-slate-800 block text-xs">Ergonomic Code Editor:</strong>
+              <p className="text-[11px] text-slate-500 mt-1">Monospace editor with line numbers, 4-space <code>Tab</code> indentation, auto-indent on colon <code>:</code>, and <code>Ctrl+Enter</code> execution.</p>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+              <strong className="text-slate-800 block text-xs">L5 Empathetic Error Hints:</strong>
+              <p className="text-[11px] text-slate-500 mt-1">Translates intimidating <code>IndentationError</code>, <code>SyntaxError</code>, and <code>NameError</code> tracebacks into calm 1-line guidance.</p>
+            </div>
           </div>
         </section>
 

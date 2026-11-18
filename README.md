@@ -104,7 +104,26 @@ The tutor calls Google's **Gemini 2.5 Flash** (`@google/genai`, `responseMimeTyp
 
 ---
 
-## 6. System Architecture & File Structure
+## 6. Live In-Browser Python Execution Engine (`<PythonRunner />`)
+
+To demystify code execution and dissolve anxiety for repeating learners (`L5`), LoopStep embeds a complete, real Python 3 runtime powered by **Pyodide (WebAssembly)**:
+1. **Real In-Browser Execution via Pyodide:**
+   * Loads `v0.26.4` via CDN with a singleton client cache (`(window as any).__pyodideInstance`), loading only once per session.
+   * Redirects and captures `sys.stdout` and `sys.stderr` in real time, displaying exact terminal outputs with preserved whitespace and indentation (vital for star triangles and pyramid patterns).
+   * Incorporates an **Infinite Loop Safety Guard** that rejects unbounded `while True:` without `break` before execution to prevent browser freezes.
+2. **Ergonomic Code Editor:**
+   * Features synchronized line numbers, 4-space `Tab` insertion (never blurs focus), and auto-indentation on Enter after colons (`:`).
+   * Shortcuts: `Ctrl+Enter` or `Cmd+Enter` immediately triggers code execution.
+3. **Calm, L5-Friendly Error Translation:**
+   * Rather than intimidating red tracebacks, Python exceptions (`IndentationError`, `SyntaxError`, `NameError`, etc.) are caught and translated into calm, supportive 1-line plain-English tips with no punitive styling.
+4. **Interactive "Try It Live" Scratchpad & Exercise Integration:**
+   * Accessible anywhere via the **"💻 Live Python Scratchpad"** button in the workspace header, complete with 4 quick loop/pattern templates.
+   * Embedded directly in all **Bug-Fix & Explain** exercises so learners can test code modifications live in the runner before committing their answer.
+   * Walkthrough snippets feature a **"Try This Example Live in Python →"** button that pre-loads the exact example into the runner.
+
+---
+
+## 7. System Architecture & File Structure
 
 ```
 et617-endsem-24b3007/
@@ -116,29 +135,30 @@ et617-endsem-24b3007/
 ├── src/
 │   ├── app/
 │   │   ├── layout.tsx                 # Root layout with identity metadata (24b3007)
-│   │   ├── page.tsx                   # Clean Module Selector + 3 active modules + C4 pause/resume
+│   │   ├── page.tsx                   # Clean Module Selector + 3 active modules + C4 pause/resume + Scratchpad
 │   │   ├── about/
-│   │   │   └── page.tsx               # Dedicated About page with Roll No: 24b3007 & AI specification
+│   │   │   └── page.tsx               # Dedicated About page with Roll No: 24b3007 & Pyodide AI specification
 │   │   └── api/
 │   │       └── tutor/
-│   │           └── route.ts           # Gemini 3.8 Flash structured API call + Zod guardrail + fallback
+│   │           └── route.ts           # Gemini 2.5 Flash structured API call + Zod guardrail + fallback
 │   ├── components/
+│   │   ├── PythonRunner.tsx           # In-browser Python 3 execution engine (Pyodide Wasm) with tab indent & error translation
 │   │   ├── SessionHeader.tsx          # Top bar with 10:00 timer & Pause & Save button
 │   │   ├── PauseOverlay.tsx           # Pause modal with "Resume Right Where You Left Off"
 │   │   ├── TraceTableTool.tsx         # Trace Grid tool with mandatory explanation textarea & stepper
 │   │   ├── ParsonsBlockEditor.tsx     # Button-based Parsons block assembly with explanation textarea
-│   │   ├── BugFixExplainer.tsx        # Bug repair with mandatory explanation textarea
+│   │   ├── BugFixExplainer.tsx        # Bug repair with embedded live Python runner & explanation textarea
 │   │   └── Footer.tsx                 # Persistent footer with Roll No: 24b3007
 │   └── lib/
-│       ├── curriculum.ts              # 3 modules (Ch 2–6), 150-word lessons, walkthroughs, 4 exercises
-│       ├── loopTracer.ts              # Python loop execution tracer, conditionals & divergence detector
+│       ├── curriculum.ts              # 3 modules (Ch 2–5), 150-word lessons, walkthroughs, 4 exercises
+│       ├── loopTracer.ts              # Python loop execution tracer, pattern loops & divergence detector
 │       ├── decisionRule.ts            # Pedagogical decision engine & fallback logic
 │       └── sessionStore.ts            # LocalStorage persistence manager for C4 pause/resume
 ```
 
 ---
 
-## 7. Verification & Build Confirmation
+## 8. Verification & Build Confirmation
 
 To build and verify LoopStep locally:
 ```bash

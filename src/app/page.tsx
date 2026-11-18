@@ -20,12 +20,15 @@ import {
   ArrowLeft,
   Code,
   HelpCircle,
+  Terminal,
+  X,
 } from "lucide-react";
 import SessionHeader from "@/components/SessionHeader";
 import PauseOverlay from "@/components/PauseOverlay";
 import TraceTableTool from "@/components/TraceTableTool";
 import ParsonsBlockEditor from "@/components/ParsonsBlockEditor";
 import BugFixExplainer from "@/components/BugFixExplainer";
+import PythonRunner from "@/components/PythonRunner";
 import Footer from "@/components/Footer";
 import {
   MODULES,
@@ -57,6 +60,10 @@ export default function HomePage() {
   const [isApiLoading, setIsApiLoading] = useState<boolean>(false);
   const [divergenceInfo, setDivergenceInfo] = useState<DivergenceResult | null>(null);
   const [taskResetKey, setTaskResetKey] = useState<number>(0);
+
+  // Live In-Browser Python Runner & Scratchpad State
+  const [isScratchpadOpen, setIsScratchpadOpen] = useState<boolean>(false);
+  const [scratchpadCode, setScratchpadCode] = useState<string>('for i in range(1, 6):\n    print("*" * i)');
 
   // Dynamic AI Reply & Branching State
   const [aiResponse, setAiResponse] = useState<{
@@ -397,12 +404,25 @@ export default function HomePage() {
                   <strong>AI Coaching Powered by Gemini 2.5 Flash:</strong> Live semantic diagnosis of your explanations with automatic fallback guarantees.
                 </span>
               </div>
-              <Link
-                href="/about"
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold shrink-0"
-              >
-                Architecture & Spec &rarr;
-              </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScratchpadCode('for i in range(1, 6):\n    print("*" * i)');
+                    setIsScratchpadOpen(true);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-semibold text-xs transition cursor-pointer shadow-2xs flex items-center gap-1.5"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Live Python Scratchpad</span>
+                </button>
+                <Link
+                  href="/about"
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold"
+                >
+                  Architecture & Spec &rarr;
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -431,8 +451,20 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* In-Session 10:00 Timer Display */}
+              {/* Actions: Live Python Scratchpad & In-Session 10:00 Timer */}
               <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScratchpadCode(activeWalkthrough ? activeWalkthrough.snippet : 'for i in range(1, 6):\n    print("*" * i)');
+                    setIsScratchpadOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-semibold text-xs transition cursor-pointer shadow-2xs"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>💻 Live Python Scratchpad</span>
+                </button>
+
                 <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono font-bold text-indigo-600">
                   <Clock className="w-3.5 h-3.5 text-indigo-500" />
                   <span>{formatTime(Math.max(0, 600 - elapsedSeconds))}</span>
@@ -535,10 +567,25 @@ export default function HomePage() {
                 </div>
 
                 {activeWalkthrough && (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-800">{activeWalkthrough.title}</span>
-                      <span className="text-indigo-600 font-mono text-[11px] font-semibold">{activeWalkthrough.subtitle}</span>
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div>
+                        <span className="font-bold text-slate-800">{activeWalkthrough.title}</span>
+                        <span className="text-indigo-600 font-mono text-[11px] font-semibold ml-2">
+                          {activeWalkthrough.subtitle}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScratchpadCode(activeWalkthrough.snippet);
+                          setIsScratchpadOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg border border-indigo-200 transition cursor-pointer"
+                      >
+                        <Terminal className="w-3 h-3 text-indigo-600" />
+                        <span>Try This Example in Live Python &rarr;</span>
+                      </button>
                     </div>
                     <p className="text-slate-600 text-xs leading-relaxed">{activeWalkthrough.description}</p>
 
@@ -652,6 +699,8 @@ export default function HomePage() {
                 {activeTask.format === "bugfix_explain" && (
                   <BugFixExplainer
                     buggyCode={activeTask.buggyCode || activeTask.codeSnippet}
+                    options={activeTask.bugFixOptions}
+                    expectedOutputSummary={activeTask.hint}
                     onSubmit={handleBugFixSubmit}
                     isLoading={isApiLoading}
                   />
@@ -881,6 +930,94 @@ export default function HomePage() {
           </div>
         )}
       </main>
+
+      {/* Live In-Browser Python Scratchpad Modal */}
+      {isScratchpadOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in text-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full border border-slate-200 shadow-2xl p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                  🐍
+                </div>
+                <div>
+                  <h2 className="font-bold text-sm text-slate-900">💻 Live Python Scratchpad</h2>
+                  <p className="text-[11px] text-slate-500">
+                    Write, edit, and run Python 3 code directly in your browser with instant console output
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsScratchpadOpen(false)}
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition cursor-pointer"
+                title="Close Scratchpad"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Quick Templates Bar */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-bold text-slate-600">Quick Loop & Pattern Templates:</span>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setScratchpadCode('for i in range(1, 6):\n    print("*" * i)')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 text-[11px] font-medium transition cursor-pointer border border-slate-200"
+                >
+                  ⭐ Star Triangle (1 to 5)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScratchpadCode('for i in range(5, 0, -1):\n    print("*" * i)')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 text-[11px] font-medium transition cursor-pointer border border-slate-200"
+                >
+                  🔻 Inverted Triangle (5 to 1)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScratchpadCode('total = 0\nfor n in range(1, 5):\n    total = total + n\nprint("Running total:", total)')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 text-[11px] font-medium transition cursor-pointer border border-slate-200"
+                >
+                  🐖 Piggy Bank Accumulator
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setScratchpadCode('for i in range(1, 5):\n    print("*" * (2 * i - 1))')}
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 text-[11px] font-medium transition cursor-pointer border border-slate-200"
+                >
+                  🔺 Odd-Star Pyramid
+                </button>
+              </div>
+            </div>
+
+            {/* In-Browser Python Runner */}
+            <PythonRunner
+              key={scratchpadCode}
+              initialCode={scratchpadCode}
+              minHeight="170px"
+              title="In-Browser Python 3 Runtime (Pyodide)"
+              subtitle="Press Ctrl+Enter or click ▶ Run Code to execute"
+            />
+
+            {/* Modal Footer */}
+            <div className="pt-2 flex justify-between items-center text-slate-400">
+              <span className="text-[11px]">
+                Powered by Pyodide WebAssembly · Executes offline in browser
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsScratchpadOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition cursor-pointer"
+              >
+                Close Scratchpad
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer with Roll No 24b3007 */}
       <Footer />
