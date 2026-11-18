@@ -9,11 +9,14 @@ import {
   AlertCircle,
   RotateCcw,
   ArrowRight,
-  ShieldCheck,
   HelpCircle,
   Play,
   Lightbulb,
-  Code2,
+  BookOpen,
+  ChevronRight,
+  ListOrdered,
+  Bug,
+  Cpu,
 } from "lucide-react";
 import SessionHeader from "@/components/SessionHeader";
 import PauseOverlay from "@/components/PauseOverlay";
@@ -24,6 +27,7 @@ import DecisionOutcomeModal from "@/components/DecisionOutcomeModal";
 import Footer from "@/components/Footer";
 import {
   TASK_BANK,
+  WARMUP_QUESTIONS,
   getTaskById,
   TaskDefinition,
   DecisionOutcomeType,
@@ -42,7 +46,7 @@ const STAGE_TITLES = [
   "Welcome",
   "Warmup",
   "Core Concepts",
-  "Interactive Practice",
+  "Practice Arena",
   "Summary",
 ];
 
@@ -53,7 +57,7 @@ export default function HomePage() {
   const [difficultyTier, setDifficultyTier] = useState<1 | 2 | 3>(1);
 
   // Active Task & Pedagogy State
-  const [activeTaskId, setActiveTaskId] = useState<string>("task_1_trace_basic");
+  const [activeTaskId, setActiveTaskId] = useState<string>("task_prereq_assignment");
   const [consecutiveErrors, setConsecutiveErrors] = useState<number>(0);
   const [attempts, setAttempts] = useState<number>(0);
   const [hintsUsed, setHintsUsed] = useState<number>(0);
@@ -71,8 +75,10 @@ export default function HomePage() {
     nextTaskId: string;
   } | null>(null);
 
-  // Warmup state
+  // Warmup state (Question locking)
+  const [warmupIndex, setWarmupIndex] = useState<number>(0);
   const [warmupSelected, setWarmupSelected] = useState<string>("");
+  const [warmupIsLocked, setWarmupIsLocked] = useState<boolean>(false);
   const [warmupFeedback, setWarmupFeedback] = useState<{ isCorrect: boolean; text: string } | null>(null);
 
   // Saved Session Detection
@@ -85,13 +91,18 @@ export default function HomePage() {
     }
   }, []);
 
-  // 10-Minute countdown tick
+  // 10-Minute countdown tick: FREEZES when stageIndex === 0, stageIndex >= 4, paused, or >= 600s
   useEffect(() => {
-    if (stageIndex === 0 && !savedSnapshot) return;
-    if (isPaused) return;
+    if (stageIndex === 0 || stageIndex >= 4 || isPaused || elapsedSeconds >= 600) {
+      return;
+    }
 
     const timer = setInterval(() => {
       setElapsedSeconds((prev) => {
+        if (prev >= 600) {
+          setStageIndex(4);
+          return 600;
+        }
         const nextVal = prev + 1;
         if (nextVal % 5 === 0) {
           saveSession({
@@ -105,18 +116,15 @@ export default function HomePage() {
             savedAt: Date.now(),
           });
         }
-        if (nextVal >= 600) {
-          setStageIndex(4);
-          return 600;
-        }
         return nextVal;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isPaused, stageIndex, activeTaskId, savedSnapshot]);
+  }, [isPaused, stageIndex, activeTaskId, elapsedSeconds]);
 
   const activeTask = getTaskById(activeTaskId);
+  const currentWarmup = WARMUP_QUESTIONS[warmupIndex];
 
   const handleTogglePause = () => {
     const newPause = !isPaused;
@@ -137,7 +145,7 @@ export default function HomePage() {
     if (!savedSnapshot) return;
     setElapsedSeconds(savedSnapshot.elapsedSeconds);
     setStageIndex(savedSnapshot.stageIndex);
-    setActiveTaskId(savedSnapshot.activeTaskId || "task_1_trace_basic");
+    setActiveTaskId(savedSnapshot.activeTaskId || "task_prereq_assignment");
     setIsPaused(false);
     setSavedSnapshot(null);
   };
@@ -148,6 +156,46 @@ export default function HomePage() {
     setElapsedSeconds(0);
     setStageIndex(1);
     setIsPaused(false);
+    setWarmupIndex(0);
+    setWarmupSelected("");
+    setWarmupIsLocked(false);
+    setWarmupFeedback(null);
+  };
+
+  // Warmup Option Selection & Locking
+  const handleSelectWarmupOption = (optionId: string) => {
+    if (warmupIsLocked) return; // Prevent changing when already submitted
+    setWarmupSelected(optionId);
+  };
+
+  const handleCheckWarmup = () => {
+    if (!warmupSelected || warmupIsLocked) return;
+    const opt = currentWarmup.options.find((o) => o.id === warmupSelected);
+    if (!opt) return;
+
+    setWarmupIsLocked(true); // LOCK inputs immediately upon check
+    setWarmupFeedback({
+      isCorrect: !!opt.isCorrect,
+      text: opt.feedback,
+    });
+  };
+
+  const handleTryAgainWarmup = () => {
+    // Unlock and clear selection so student can make a deliberate new attempt
+    setWarmupSelected("");
+    setWarmupIsLocked(false);
+    setWarmupFeedback(null);
+  };
+
+  const handleNextWarmup = () => {
+    if (warmupIndex + 1 < WARMUP_QUESTIONS.length) {
+      setWarmupIndex((prev) => prev + 1);
+      setWarmupSelected("");
+      setWarmupIsLocked(false);
+      setWarmupFeedback(null);
+    } else {
+      setStageIndex(2);
+    }
   };
 
   const processSubmission = async (
@@ -288,20 +336,20 @@ export default function HomePage() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
         {/* ========================================================= */}
-        {/* STAGE 0: WELCOME & RESUME CHECK                          */}
+        {/* STAGE 0: WELCOME & START SESSION                          */}
         {/* ========================================================= */}
         {stageIndex === 0 && (
           <div className="bg-white rounded-2xl border border-slate-200/90 p-8 shadow-sm space-y-6 animate-fade-in">
-            <div className="max-w-lg">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold mb-3">
+            <div className="max-w-xl">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold mb-3">
                 <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                Interactive Python Practice
+                Python Crash Course Guide
               </span>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                 Master Python Loops Without the Stress
-              </h2>
+              </h1>
               <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                Build a rock-solid mental model of loop execution, variable tracing, and accumulators through bite-sized, interactive exercises.
+                Build a crystal-clear mental model of Python execution, variable updates, and loop control structures through bite-sized, interactive visual exercises.
               </p>
             </div>
 
@@ -320,8 +368,9 @@ export default function HomePage() {
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={handleResumeSavedSession}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-medium shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0 transition"
                 >
                   <Play className="w-3.5 h-3.5 fill-white" />
                   <span>Resume Progress</span>
@@ -332,31 +381,32 @@ export default function HomePage() {
             {/* 3 Core Highlights */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200/80">
-                <div className="font-semibold text-slate-800 text-xs">Interactive Stepper</div>
+                <div className="font-semibold text-slate-800 text-xs">Variables & Memory First</div>
                 <p className="text-slate-500 text-xs mt-1 leading-relaxed">
-                  Scrub through loop execution line-by-line without doing mental arithmetic.
+                  Start with sequential updates before loops, following Eric Matthes&apos;s guide.
                 </p>
               </div>
               <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200/80">
-                <div className="font-semibold text-slate-800 text-xs">No Syntax Freeze</div>
+                <div className="font-semibold text-slate-800 text-xs">Interactive Stepper</div>
                 <p className="text-slate-500 text-xs mt-1 leading-relaxed">
-                  Practice with trace tables, block reordering, and targeted bug fixes.
+                  Scrub line-by-line through Python frames without doing mental math.
                 </p>
               </div>
               <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200/80">
                 <div className="font-semibold text-slate-800 text-xs">10-Minute Focus</div>
                 <p className="text-slate-500 text-xs mt-1 leading-relaxed">
-                  A complete learning cycle in 10 minutes with instant pause and resume.
+                  Complete sequence designed for 10 minutes with instant pause and resume.
                 </p>
               </div>
             </div>
 
             <div className="pt-3 flex justify-end">
               <button
+                type="button"
                 onClick={handleStartFresh}
                 className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs transition shadow-xs flex items-center gap-2 cursor-pointer"
               >
-                <span>Start Practice Session</span>
+                <span>Start Learning Session</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -364,88 +414,87 @@ export default function HomePage() {
         )}
 
         {/* ========================================================= */}
-        {/* STAGE 1: WARMUP DIAGNOSTIC                                */}
+        {/* STAGE 1: WARMUP DIAGNOSTIC (WITH OPTION LOCKING)          */}
         {/* ========================================================= */}
         {stageIndex === 1 && (
           <div className="bg-white rounded-2xl border border-slate-200/90 p-7 shadow-sm space-y-5 animate-fade-in text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
                 <span className="text-[11px] font-semibold text-indigo-600 uppercase tracking-wider">
-                  Quick Check
+                  Check-in {warmupIndex + 1} of {WARMUP_QUESTIONS.length}
                 </span>
                 <h2 className="text-base font-bold text-slate-900 mt-0.5">
-                  The Loop Stop Boundary
+                  {currentWarmup.topic}
                 </h2>
               </div>
               <span className="text-slate-400 text-xs">~1 minute</span>
             </div>
 
-            <p className="text-slate-600 text-xs">
-              What sequence of numbers does Python print for this loop?
+            <p className="text-slate-700 text-xs leading-relaxed font-medium">
+              {currentWarmup.question}
             </p>
 
             <div className="p-3 bg-[#181825] rounded-xl font-mono text-xs text-slate-300 border border-slate-800">
-              <pre>
-                <span className="text-[#CBA6F7]">for </span>
-                <span className="text-[#CDD6F4]">i</span>
-                <span className="text-[#CBA6F7]"> in </span>
-                <span className="text-[#89B4FA]">range</span>(1, 4):{"\n"}
-                <span className="text-slate-400">    </span>
-                <span className="text-[#89B4FA]">print</span>(i)
-              </pre>
+              <pre>{currentWarmup.codeSnippet}</pre>
             </div>
 
+            {/* Options List with Disabled State on Lock */}
             <div className="space-y-2">
-              {[
-                { id: "opt_inclusive", label: "1, 2, 3, 4 (includes 4)", isM1: true },
-                { id: "opt_exclusive", label: "1, 2, 3 (stops right before 4)", isCorrect: true },
-                { id: "opt_zero_start", label: "0, 1, 2, 3 (starts at 0)", isOther: true },
-              ].map((opt) => (
-                <label
-                  key={opt.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition ${
-                    warmupSelected === opt.id
-                      ? "bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-300"
-                      : "bg-slate-50/70 border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="warmup"
-                    value={opt.id}
-                    checked={warmupSelected === opt.id}
-                    onChange={() => {
-                      setWarmupSelected(opt.id);
-                      if (opt.isCorrect) {
-                        setWarmupFeedback({
-                          isCorrect: true,
-                          text: "Spot on! Python treats the second argument as an exclusive stop sign — it stops right before 4.",
-                        });
-                      } else if (opt.isM1) {
-                        setWarmupFeedback({
-                          isCorrect: false,
-                          text: "Very common misunderstanding! In Python, range(1, 4) stops right BEFORE 4, visiting only 1, 2, and 3.",
-                        });
-                      } else {
-                        setWarmupFeedback({
-                          isCorrect: false,
-                          text: "Notice that range(1, 4) starts explicitly at 1, so 0 is not included.",
-                        });
-                      }
-                    }}
-                    className="text-indigo-600 focus:ring-indigo-500"
-                  />
-                  <span className="font-mono text-slate-800 text-xs">{opt.label}</span>
-                </label>
-              ))}
+              {currentWarmup.options.map((opt) => {
+                const isSelected = warmupSelected === opt.id;
+                return (
+                  <label
+                    key={opt.id}
+                    onClick={() => handleSelectWarmupOption(opt.id)}
+                    className={`flex items-center gap-3 p-3 rounded-xl border transition ${
+                      warmupIsLocked
+                        ? isSelected
+                          ? opt.isCorrect
+                            ? "bg-emerald-50/70 border-emerald-300 ring-1 ring-emerald-300 cursor-default"
+                            : "bg-amber-50/70 border-amber-300 ring-1 ring-amber-300 cursor-default"
+                          : "bg-slate-50/40 border-slate-200 opacity-60 cursor-not-allowed"
+                        : isSelected
+                        ? "bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-300 cursor-pointer"
+                        : "bg-slate-50/70 border-slate-200 hover:border-slate-300 cursor-pointer"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="warmup"
+                      value={opt.id}
+                      checked={isSelected}
+                      disabled={warmupIsLocked}
+                      onChange={() => handleSelectWarmupOption(opt.id)}
+                      className="text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
+                    />
+                    <span className="font-mono text-slate-800 text-xs">{opt.text}</span>
+                  </label>
+                );
+              })}
             </div>
 
+            {/* Submit / Check or Try Again Controls */}
+            {!warmupIsLocked ? (
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCheckWarmup}
+                  disabled={!warmupSelected}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Check Answer</span>
+                </button>
+              </div>
+            ) : null}
+
+            {/* Locked Feedback Alert */}
             {warmupFeedback && (
               <div
-                className={`p-3 rounded-xl border flex items-start gap-2.5 text-xs ${
+                className={`p-3.5 rounded-xl border flex items-start gap-2.5 text-xs animate-fade-in ${
                   warmupFeedback.isCorrect
-                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                    : "bg-amber-50 border-amber-200 text-amber-900"
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-950"
+                    : "bg-amber-50 border-amber-200 text-amber-950"
                 }`}
               >
                 {warmupFeedback.isCorrect ? (
@@ -453,20 +502,43 @@ export default function HomePage() {
                 ) : (
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 )}
-                <p className="text-xs">{warmupFeedback.text}</p>
+                <div>
+                  <div className="font-semibold">
+                    {warmupFeedback.isCorrect ? "Spot on!" : "Let's review this concept"}
+                  </div>
+                  <p className="text-xs mt-0.5 leading-relaxed">{warmupFeedback.text}</p>
+                </div>
               </div>
             )}
 
-            <div className="pt-2 flex justify-end">
-              <button
-                onClick={() => setStageIndex(2)}
-                disabled={!warmupSelected}
-                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 disabled:opacity-40 cursor-pointer"
-              >
-                <span>Continue to Core Concepts</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            {/* Action buttons after submission */}
+            {warmupIsLocked && (
+              <div className="pt-2 flex justify-end gap-2.5">
+                {!warmupFeedback?.isCorrect && (
+                  <button
+                    type="button"
+                    onClick={handleTryAgainWarmup}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Try Again</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleNextWarmup}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span>
+                    {warmupIndex + 1 < WARMUP_QUESTIONS.length
+                      ? "Next Question"
+                      : "Continue to Core Concepts"}
+                  </span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -481,7 +553,7 @@ export default function HomePage() {
                   Visual Guide
                 </span>
                 <h2 className="text-base font-bold text-slate-900 mt-0.5">
-                  Two Golden Rules of Python Loops
+                  Two Fundamental Rules of Python Loops
                 </h2>
               </div>
               <span className="text-slate-400 text-xs">~2 minutes</span>
@@ -495,7 +567,7 @@ export default function HomePage() {
                     <span className="w-6 h-6 rounded-full bg-red-100 text-red-600 font-bold flex items-center justify-center text-[10px]">
                       1
                     </span>
-                    <h3 className="font-bold text-slate-900 text-xs">The Stop Boundary Rule</h3>
+                    <h3 className="font-bold text-slate-900 text-xs">The Exclusive Stop Boundary</h3>
                   </div>
                   <p className="text-slate-600 text-xs leading-relaxed">
                     When Python executes <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">range(1, 4)</code>, it starts at 1 and stops <strong>right before 4</strong>. The values visited are only 1, 2, and 3.
@@ -512,23 +584,23 @@ export default function HomePage() {
                     <span className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 font-bold flex items-center justify-center text-[10px]">
                       2
                     </span>
-                    <h3 className="font-bold text-slate-900 text-xs">Piggy Bank vs. Whiteboard</h3>
+                    <h3 className="font-bold text-slate-900 text-xs">Accumulating vs. Overwriting</h3>
                   </div>
                   <p className="text-slate-600 text-xs leading-relaxed">
-                    Writing <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">total = total + i</code> drops each new value into your piggy bank without erasing the past. In contrast, <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">total = i</code> erases the whiteboard on every pass.
+                    Writing <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">total = total + i</code> adds each new value to the running total. In contrast, <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-800">total = i</code> replaces the previous sum on every single pass.
                   </p>
                 </div>
                 <div className="mt-2 p-2 bg-white rounded-xl border border-slate-200 font-mono text-[11px] text-emerald-600 font-semibold text-center">
-                  total = total + i keeps previous sum
+                  total = total + i preserves past sums
                 </div>
               </div>
             </div>
 
-            {/* Embedded Live Tracer Tool */}
+            {/* Embedded Live Tracer Tool with Stable Stepper */}
             <div>
               <div className="mb-2">
                 <span className="font-semibold text-slate-800 text-xs">
-                  Try it out on the interactive bench:
+                  Inspect the execution frame-by-frame with the stepper:
                 </span>
               </div>
               <TraceTableTool
@@ -552,10 +624,11 @@ export default function HomePage() {
 
             <div className="pt-2 flex justify-end">
               <button
+                type="button"
                 onClick={() => setStageIndex(3)}
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs transition shadow-xs flex items-center gap-2 cursor-pointer"
               >
-                <span>Start Practice Challenges</span>
+                <span>Start Practice Arena</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -567,27 +640,56 @@ export default function HomePage() {
         {/* ========================================================= */}
         {stageIndex === 3 && (
           <div className="space-y-4 animate-fade-in text-xs">
-            {/* Task Card Header */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm">
+            {/* Quick Task Switcher Bar */}
+            <div className="bg-white rounded-xl border border-slate-200/90 p-2.5 shadow-xs flex items-center justify-between gap-2 overflow-x-auto">
+              <div className="flex items-center gap-1.5 shrink-0">
+                <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+                <span className="font-semibold text-[11px] text-slate-700">Python Curriculum:</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {TASK_BANK.map((t, idx) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTaskId(t.id);
+                      setDifficultyTier(t.tier);
+                      setAttempts(0);
+                      setHintsUsed(0);
+                      setShowHint(false);
+                      setActiveDecision(null);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition cursor-pointer shrink-0 ${
+                      activeTaskId === t.id
+                        ? "bg-indigo-600 text-white font-semibold shadow-2xs"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    Ex {idx + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Task Card */}
+            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md border border-slate-200">
-                    {activeTask.format === "trace_grid"
-                      ? "Trace Table"
-                      : activeTask.format === "parsons_order"
-                      ? "Block Ordering"
-                      : activeTask.format === "bugfix_explain"
-                      ? "Debug & Explain"
-                      : "Foundation Step"}
+                  <span className="text-[10px] font-semibold uppercase bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
+                    {activeTask.chapterSource}
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[10px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
                     Level {activeTask.tier}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setShowHint(!showHint)}
+                    type="button"
+                    onClick={() => {
+                      setShowHint(!showHint);
+                      if (!showHint) setHintsUsed((h) => h + 1);
+                    }}
                     className="flex items-center gap-1 text-[11px] text-amber-700 hover:text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 cursor-pointer"
                   >
                     <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
@@ -595,7 +697,8 @@ export default function HomePage() {
                   </button>
 
                   <button
-                    onClick={() => processSubmission("Clicked stuck", false, "PREREQ")}
+                    type="button"
+                    onClick={() => processSubmission("Clicked foundation review", false, "PREREQ")}
                     className="flex items-center gap-1 text-[11px] text-slate-600 hover:text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 cursor-pointer"
                   >
                     <HelpCircle className="w-3.5 h-3.5 text-indigo-500" />
@@ -604,18 +707,20 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <h2 className="text-base font-bold text-slate-900 mt-3">{activeTask.title}</h2>
-              <p className="text-slate-600 text-xs mt-1 leading-relaxed">{activeTask.prompt}</p>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">{activeTask.title}</h2>
+                <p className="text-slate-600 text-xs mt-1 leading-relaxed">{activeTask.prompt}</p>
+              </div>
 
               {showHint && (
-                <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-2 animate-fade-in text-amber-900">
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-2 animate-fade-in text-amber-900">
                   <Lightbulb className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-xs leading-relaxed">{activeTask.hint}</p>
                 </div>
               )}
             </div>
 
-            {/* Task Formats */}
+            {/* Task Workspaces by Format */}
             {activeTask.format === "trace_grid" && (
               <TraceTableTool
                 loopConfig={activeTask.loopConfig}
@@ -641,24 +746,25 @@ export default function HomePage() {
 
             {activeTask.format === "prereq_trace" && (
               <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-4">
-                <div className="p-3 bg-[#181825] rounded-xl font-mono text-xs text-slate-300 border border-slate-800">
+                <div className="p-3.5 bg-[#181825] rounded-xl font-mono text-xs text-slate-300 border border-slate-800">
                   <pre>{activeTask.codeSnippet}</pre>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <label className="font-semibold text-slate-800">Final value of score:</label>
                   <input
                     type="text"
                     id="prereqInput"
                     placeholder="e.g. 9"
-                    className="w-20 px-3 py-1.5 font-mono text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-24 px-3 py-1.5 font-mono text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <button
+                    type="button"
                     onClick={() => {
                       const input = document.getElementById("prereqInput") as HTMLInputElement;
                       if (input) handlePrereqSubmit(input.value);
                     }}
-                    className="px-4 py-1.5 bg-indigo-600 text-white font-medium rounded-lg text-xs hover:bg-indigo-700 cursor-pointer shadow-xs"
+                    className="px-4 py-1.5 bg-indigo-600 text-white font-medium rounded-lg text-xs hover:bg-indigo-700 cursor-pointer shadow-xs transition"
                   >
                     Check
                   </button>
@@ -688,9 +794,10 @@ export default function HomePage() {
 
             <div className="pt-2 flex justify-between items-center text-slate-400">
               <span className="text-[11px]">
-                Attempts: {attempts} · Hints: {hintsUsed}
+                Attempts: {attempts} · Hints used: {hintsUsed}
               </span>
               <button
+                type="button"
                 onClick={() => setStageIndex(4)}
                 className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer"
               >
@@ -701,7 +808,7 @@ export default function HomePage() {
         )}
 
         {/* ========================================================= */}
-        {/* STAGE 4: SESSION SUMMARY                                  */}
+        {/* STAGE 4: SESSION SUMMARY (TIMER STOPS COMPLETELY)         */}
         {/* ========================================================= */}
         {stageIndex === 4 && (
           <div className="bg-white rounded-2xl border border-slate-200/90 p-8 shadow-sm space-y-6 animate-fade-in text-xs">
@@ -713,19 +820,19 @@ export default function HomePage() {
                 Practice Session Complete!
               </h2>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Great job working through loop boundaries, trace tables, and accumulators today.
+                Great job working through variable memory, loop bounds, trace tables, and accumulators today.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 text-center">
-                <div className="text-[11px] text-slate-500 font-medium">Session Duration</div>
+                <div className="text-[11px] text-slate-500 font-medium">Session Duration (Halted)</div>
                 <div className="text-xl font-bold font-mono text-indigo-600 mt-1">
                   {formatTime(elapsedSeconds)}
                 </div>
               </div>
               <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 text-center">
-                <div className="text-[11px] text-slate-500 font-medium">Mastery Level</div>
+                <div className="text-[11px] text-slate-500 font-medium">Mastery Level Reached</div>
                 <div className="text-xl font-bold text-emerald-600 mt-1">
                   Level {difficultyTier} Achieved
                 </div>
@@ -733,21 +840,31 @@ export default function HomePage() {
             </div>
 
             <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-2">
-              <h3 className="font-semibold text-slate-800">Quick Recap:</h3>
+              <h3 className="font-semibold text-slate-800">Key Takeaways from Python Crash Course:</h3>
               <ul className="list-disc pl-5 space-y-1.5 text-slate-600 text-xs">
                 <li>
-                  <strong>Exclusive Bound:</strong> <code className="bg-white px-1 rounded border text-slate-800">range(start, stop)</code> stops before <code className="text-indigo-600">stop</code>.
+                  <strong>Variables as Storage Boxes (Ch 2):</strong> Variables update sequentially; reassignment replaces the stored value.
                 </li>
                 <li>
-                  <strong>Accumulator:</strong> <code className="bg-white px-1 rounded border text-slate-800">total = total + i</code> adds each new value without erasing the running sum.
+                  <strong>List Looping (Ch 4):</strong> <code className="bg-white px-1 rounded border text-slate-800">for item in items:</code> passes each item into the variable sequentially.
+                </li>
+                <li>
+                  <strong>Exclusive Bound (Ch 4):</strong> <code className="bg-white px-1 rounded border text-slate-800">range(start, stop)</code> stops right before <code className="text-indigo-600 font-mono">stop</code>.
+                </li>
+                <li>
+                  <strong>Accumulator Pattern (Ch 4):</strong> <code className="bg-white px-1 rounded border text-slate-800">total = total + i</code> adds each new value without wiping the running total.
+                </li>
+                <li>
+                  <strong>While Loops (Ch 7):</strong> Repeat as long as the condition remains True, updating counters manually.
                 </li>
               </ul>
             </div>
 
             <div className="pt-2 flex justify-between items-center">
               <button
+                type="button"
                 onClick={handleStartFresh}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Practice Again</span>
@@ -764,7 +881,7 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* Ultra-Clean Persistent Footer with ONLY Roll No */}
+      {/* Clean Persistent Footer with ONLY Roll No */}
       <Footer />
     </div>
   );

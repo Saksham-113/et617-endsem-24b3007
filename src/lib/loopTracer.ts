@@ -1,18 +1,18 @@
 /**
  * Pure TypeScript Step-by-Step Python Loop Execution Tracer
- * Designed for ET 617 Exam (P4-T10, L5, C4)
- * Externalizes working memory for anxious learners (Norman Affordance & T6 Tool)
+ * Guided by Python Crash Course (Eric Matthes)
+ * Covers: Variables (Ch 2), Lists & For Loops (Ch 3-4), range() (Ch 4), while loops & accumulators (Ch 7)
  */
 
 export interface TraceFrame {
   stepIndex: number;
-  passNumber: number; // 1-indexed iteration pass
+  passNumber: number; // 0 for init, 1..N for iterations
   lineNumber: number;
   codeLine: string;
   loopVarName: string;
-  loopVarValue: number;
+  loopVarValue: number | string;
   accumulatorName: string;
-  accumulatorValue: number;
+  accumulatorValue: number | string;
   printedOutput?: string;
   explanationNote: string;
   isStopBoundary?: boolean;
@@ -25,10 +25,12 @@ export interface LoopProgramConfig {
   rangeStart: number;
   rangeStop: number;
   rangeStep?: number;
-  accumulatorOperation?: "add" | "multiply" | "overwrite"; // overwrite is M2 bug: total = i
+  accumulatorOperation?: "add" | "multiply" | "overwrite";
   filterCondition?: (val: number) => boolean;
   filterConditionStr?: string;
-  customCodeSnippet: string;
+  customCodeSnippet?: string;
+  listItems?: string[]; // For looping through lists like ['alice', 'david', 'carolina']
+  isWhileLoop?: boolean;
 }
 
 export interface LearnerTraceRow {
@@ -48,32 +50,153 @@ export interface DivergenceResult {
 }
 
 /**
- * Deterministically simulates Python range() and accumulator behavior
+ * Deterministically simulates Python execution frame-by-frame
  */
 export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
   const frames: TraceFrame[] = [];
   const step = config.rangeStep !== undefined ? config.rangeStep : 1;
   const accName = config.initialAccumulatorName || "total";
   let accVal = config.initialAccumulatorValue !== undefined ? config.initialAccumulatorValue : 0;
-  const loopVar = config.loopVar || "i";
+  const loopVar = config.loopVar || "value";
 
-  let pass = 0;
   let stepCounter = 1;
 
-  // Initial state frame before loop starts
+  // Frame 1: Initialization line
   frames.push({
     stepIndex: stepCounter++,
     passNumber: 0,
     lineNumber: 1,
     codeLine: `${accName} = ${accVal}`,
     loopVarName: loopVar,
-    loopVarValue: 0,
+    loopVarValue: "-",
     accumulatorName: accName,
     accumulatorValue: accVal,
-    explanationNote: `Before the loop starts, ${accName} is set to ${accVal}.`,
+    explanationNote: `Before the loop starts, ${accName} is initialized to ${accVal}.`,
   });
 
-  // Python range evaluation
+  // Mode A: Iterating through a Python list (Python Crash Course Ch 3-4)
+  if (config.listItems && config.listItems.length > 0) {
+    let pass = 0;
+    for (let idx = 0; idx < config.listItems.length; idx++) {
+      pass++;
+      const item = config.listItems[idx];
+
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 2,
+        codeLine: `for ${loopVar} in items:`,
+        loopVarName: loopVar,
+        loopVarValue: item,
+        accumulatorName: accName,
+        accumulatorValue: accVal,
+        explanationNote: `Pass ${pass}: ${loopVar} takes the next item from the list: "${item}".`,
+      });
+
+      if (config.accumulatorOperation === "overwrite") {
+        accVal = (idx + 1) as any;
+      } else {
+        accVal = ((accVal as number) + 1) as any;
+      }
+
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 3,
+        codeLine: `    ${accName} = ${accName} + 1`,
+        loopVarName: loopVar,
+        loopVarValue: item,
+        accumulatorName: accName,
+        accumulatorValue: accVal,
+        explanationNote: `Pass ${pass}: ${accName} count increments to ${accVal}.`,
+      });
+    }
+
+    frames.push({
+      stepIndex: stepCounter++,
+      passNumber: pass + 1,
+      lineNumber: 4,
+      codeLine: `print(${accName})`,
+      loopVarName: loopVar,
+      loopVarValue: config.listItems[config.listItems.length - 1],
+      accumulatorName: accName,
+      accumulatorValue: accVal,
+      printedOutput: String(accVal),
+      explanationNote: `Loop finished all ${config.listItems.length} items. Final output: ${accVal}.`,
+      isStopBoundary: true,
+    });
+
+    return frames;
+  }
+
+  // Mode B: While loop with counter (Python Crash Course Ch 7)
+  if (config.isWhileLoop) {
+    let current = config.rangeStart;
+    let pass = 0;
+    while (current <= config.rangeStop) {
+      pass++;
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 2,
+        codeLine: `while ${loopVar} <= ${config.rangeStop}:`,
+        loopVarName: loopVar,
+        loopVarValue: current,
+        accumulatorName: accName,
+        accumulatorValue: accVal,
+        explanationNote: `Pass ${pass}: ${loopVar} is ${current} (<= ${config.rangeStop} is True). Entering loop body.`,
+      });
+
+      if (config.accumulatorOperation === "overwrite") {
+        accVal = current;
+      } else {
+        accVal = (accVal as number) + current;
+      }
+
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 3,
+        codeLine: `    ${accName} = ${accName} + ${loopVar}`,
+        loopVarName: loopVar,
+        loopVarValue: current,
+        accumulatorName: accName,
+        accumulatorValue: accVal,
+        explanationNote: `Pass ${pass}: ${accName} updates to ${accVal}.`,
+      });
+
+      current += step;
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 4,
+        codeLine: `    ${loopVar} = ${loopVar} + 1`,
+        loopVarName: loopVar,
+        loopVarValue: current,
+        accumulatorName: accName,
+        accumulatorValue: accVal,
+        explanationNote: `Pass ${pass}: ${loopVar} updates to ${current}.`,
+      });
+    }
+
+    frames.push({
+      stepIndex: stepCounter++,
+      passNumber: pass + 1,
+      lineNumber: 5,
+      codeLine: `print(${accName})`,
+      loopVarName: loopVar,
+      loopVarValue: current,
+      accumulatorName: accName,
+      accumulatorValue: accVal,
+      printedOutput: String(accVal),
+      explanationNote: `Loop terminated because ${loopVar} = ${current} > ${config.rangeStop}. Final output: ${accVal}.`,
+      isStopBoundary: true,
+    });
+
+    return frames;
+  }
+
+  // Mode C: Python for ... in range() (Python Crash Course Ch 4)
   const sequence: number[] = [];
   if (step > 0) {
     for (let v = config.rangeStart; v < config.rangeStop; v += step) {
@@ -85,11 +208,12 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
     }
   }
 
+  let pass = 0;
   for (let idx = 0; idx < sequence.length; idx++) {
     const currentVal = sequence[idx];
     pass++;
 
-    // Frame 1: loop header executed
+    // Frame: Loop header
     frames.push({
       stepIndex: stepCounter++,
       passNumber: pass,
@@ -99,35 +223,17 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
       loopVarValue: currentVal,
       accumulatorName: accName,
       accumulatorValue: accVal,
-      explanationNote: `Pass ${pass}: ${loopVar} takes the next value from range: ${currentVal}. (Notice it hasn't reached stop bound ${config.rangeStop}).`,
+      explanationNote: `Pass ${pass}: ${loopVar} = ${currentVal} (Python stops right before ${config.rangeStop}).`,
     });
 
-    // Check optional filter
-    if (config.filterCondition && !config.filterCondition(currentVal)) {
-      frames.push({
-        stepIndex: stepCounter++,
-        passNumber: pass,
-        lineNumber: 3,
-        codeLine: `if not (${config.filterConditionStr || "condition"}): skip`,
-        loopVarName: loopVar,
-        loopVarValue: currentVal,
-        accumulatorName: accName,
-        accumulatorValue: accVal,
-        explanationNote: `Pass ${pass}: Value ${currentVal} was skipped by filter condition.`,
-      });
-      continue;
-    }
-
-    // Accumulator update
+    // Frame: Accumulator update
     const previousAcc = accVal;
     if (config.accumulatorOperation === "overwrite") {
-      // M2 bug
       accVal = currentVal;
     } else if (config.accumulatorOperation === "multiply") {
-      accVal = accVal * currentVal;
+      accVal = (accVal as number) * currentVal;
     } else {
-      // standard add
-      accVal = accVal + currentVal;
+      accVal = (accVal as number) + currentVal;
     }
 
     const opStr =
@@ -146,8 +252,8 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
       accumulatorValue: accVal,
       explanationNote:
         config.accumulatorOperation === "overwrite"
-          ? `Pass ${pass}: ${accName} was replaced by ${currentVal} (previous ${previousAcc} was erased!).`
-          : `Pass ${pass}: ${accName} was updated from ${previousAcc} to ${accVal} (+${currentVal}).`,
+          ? `Pass ${pass}: ${accName} is overwritten by ${currentVal} (previous sum ${previousAcc} was lost).`
+          : `Pass ${pass}: ${accName} updates from ${previousAcc} to ${accVal} (+${currentVal}).`,
     });
   }
 
@@ -162,7 +268,7 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
     accumulatorName: accName,
     accumulatorValue: accVal,
     printedOutput: String(accVal),
-    explanationNote: `Loop finished after ${pass} passes. Python saw the stop bound ${config.rangeStop} and stopped. Final ${accName} is ${accVal}.`,
+    explanationNote: `Loop finished after ${pass} passes. Python stopped right before ${config.rangeStop}. Final output: ${accVal}.`,
     isStopBoundary: true,
   });
 
@@ -171,15 +277,13 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
 
 /**
  * Compares learner's trace predictions with the true Python execution.
- * Pinpoints the exact pass and variable where divergence occurred.
  */
 export function findDivergenceStep(
   learnerRows: LearnerTraceRow[],
   actualFrames: TraceFrame[],
   rangeStop: number
 ): DivergenceResult {
-  // Extract canonical per-pass values from frames
-  const canonicalPasses = new Map<number, { loopVar: number; accumulator: number }>();
+  const canonicalPasses = new Map<number, { loopVar: number | string; accumulator: number | string }>();
   for (const f of actualFrames) {
     if (f.passNumber > 0 && !f.isStopBoundary) {
       canonicalPasses.set(f.passNumber, {
@@ -191,7 +295,7 @@ export function findDivergenceStep(
 
   const expectedPassCount = canonicalPasses.size;
 
-  // Check if learner added an extra pass that includes the stop boundary (M1)
+  // Check if learner added a pass with the stop boundary value (M1)
   for (const row of learnerRows) {
     const lVar = Number(row.loopVarValue);
     if (lVar === rangeStop) {
@@ -202,7 +306,7 @@ export function findDivergenceStep(
         learnerValue: row.loopVarValue,
         actualValue: `Stopped before ${rangeStop}`,
         diagnosedMisconception: "M1",
-        explanationMessage: `On Pass ${row.passNumber}, you wrote that the loop variable reached ${rangeStop}. Remember: Python stops right BEFORE ${rangeStop}!`,
+        explanationMessage: `On Pass ${row.passNumber}, you wrote that the variable reached ${rangeStop}. Remember Python's exclusive stop rule: range(start, stop) stops right BEFORE the stop number!`,
       };
     }
   }
@@ -213,15 +317,14 @@ export function findDivergenceStep(
     const learner = learnerRows.find((r) => r.passNumber === p);
 
     if (!expected && learner) {
-      // Extra pass entered
       return {
         hasDiverged: true,
         divergencePass: p,
         field: "extra_pass",
         learnerValue: `Pass ${p}`,
-        actualValue: `Loop already finished at Pass ${expectedPassCount}`,
+        actualValue: `Finished at Pass ${expectedPassCount}`,
         diagnosedMisconception: "M1",
-        explanationMessage: `The loop actually finished after Pass ${expectedPassCount}. Python exited before reaching Pass ${p}.`,
+        explanationMessage: `The loop finished after Pass ${expectedPassCount}. Python exited before reaching Pass ${p}.`,
       };
     }
 
@@ -230,30 +333,33 @@ export function findDivergenceStep(
         hasDiverged: true,
         divergencePass: p,
         field: "missing_pass",
-        actualValue: `Pass ${p} needed`,
-        explanationMessage: `Pass ${p} is missing from your trace table.`,
+        actualValue: `Expected Pass ${p}`,
+        diagnosedMisconception: "OTHER",
+        explanationMessage: `The loop still had more passes. Pass ${p} is missing from your trace table.`,
       };
     }
 
     if (expected && learner) {
-      const lVar = Number(learner.loopVarValue);
-      const lAcc = Number(learner.accumulatorValue);
+      const lVar = String(learner.loopVarValue).trim();
+      const expVar = String(expected.loopVar).trim();
 
-      if (lVar !== expected.loopVar) {
+      if (lVar !== expVar) {
         return {
           hasDiverged: true,
           divergencePass: p,
           field: "loopVar",
           learnerValue: learner.loopVarValue,
           actualValue: expected.loopVar,
-          diagnosedMisconception: lVar === rangeStop ? "M1" : "OTHER",
-          explanationMessage: `On Pass ${p}, the loop variable is ${expected.loopVar}, but you entered ${learner.loopVarValue}.`,
+          diagnosedMisconception: Number(lVar) === rangeStop ? "M1" : "OTHER",
+          explanationMessage: `On Pass ${p}, the variable is ${expected.loopVar}, but you entered ${learner.loopVarValue}.`,
         };
       }
 
-      if (lAcc !== expected.accumulator) {
-        // Check if learner just put lVar into accumulator (M2)
-        const isOverwrite = lAcc === expected.loopVar;
+      const lAcc = String(learner.accumulatorValue).trim();
+      const expAcc = String(expected.accumulator).trim();
+
+      if (lAcc !== expAcc) {
+        const isOverwrite = lAcc === expVar;
         return {
           hasDiverged: true,
           divergencePass: p,
@@ -262,8 +368,8 @@ export function findDivergenceStep(
           actualValue: expected.accumulator,
           diagnosedMisconception: isOverwrite ? "M2" : "PREREQ",
           explanationMessage: isOverwrite
-            ? `On Pass ${p}, you wrote total = ${learner.accumulatorValue}. That overwrote the previous total instead of adding to it (piggy bank vs. whiteboard)!`
-            : `On Pass ${p}, total should be ${expected.accumulator}, but you entered ${learner.accumulatorValue}.`,
+            ? `On Pass ${p}, you wrote ${accName(actualFrames)} = ${learner.accumulatorValue}. That replaced the previous sum instead of adding to it (variable reassignment vs. accumulation)!`
+            : `On Pass ${p}, the running total should be ${expected.accumulator}, but you entered ${learner.accumulatorValue}.`,
         };
       }
     }
@@ -273,4 +379,8 @@ export function findDivergenceStep(
     hasDiverged: false,
     explanationMessage: "Spot on! Your trace table matches Python's execution exactly.",
   };
+}
+
+function accName(frames: TraceFrame[]): string {
+  return frames[0]?.accumulatorName || "total";
 }
