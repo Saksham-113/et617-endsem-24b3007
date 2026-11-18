@@ -53,26 +53,42 @@ export default function TraceTableTool({
   ]);
 
   const [currentStep, setCurrentStep] = useState<number>(0);
-  const [viewMode, setViewMode] = useState<"step" | "predict">("step");
+  const [viewMode, setViewMode] = useState<"step" | "predict">(readOnly ? "step" : "predict");
 
   // Reset current step only when config changes structurally
   const configSignature = `${loopConfig.rangeStart}-${loopConfig.rangeStop}-${loopConfig.rangeStep}-${loopConfig.loopVar}-${loopConfig.accumulatorOperation}-${(loopConfig.listItems || []).join(",")}-${loopConfig.isWhileLoop}`;
-  useEffect(() => {
-    setCurrentStep(0);
-  }, [configSignature]);
 
   // Learner input rows for Trace Table mode
-  const [rows, setRows] = useState<LearnerTraceRow[]>(
-    initialLearnerRows || [
-      { passNumber: 1, loopVarValue: "", accumulatorValue: "" },
-      { passNumber: 2, loopVarValue: "", accumulatorValue: "" },
-      { passNumber: 3, loopVarValue: "", accumulatorValue: "" },
-    ]
-  );
+  const [rows, setRows] = useState<LearnerTraceRow[]>(() => {
+    if (initialLearnerRows && initialLearnerRows.length > 0) return initialLearnerRows;
+    const count = expectedPassCount || 3;
+    return Array.from({ length: count }, (_, idx) => ({
+      passNumber: idx + 1,
+      loopVarValue: "",
+      accumulatorValue: "",
+    }));
+  });
 
   const [divergence, setDivergence] = useState<DivergenceResult | null>(null);
   const [hasChecked, setHasChecked] = useState<boolean>(false);
   const [explanation, setExplanation] = useState<string>("");
+
+  useEffect(() => {
+    setCurrentStep(0);
+    setViewMode(readOnly ? "step" : "predict");
+    setDivergence(null);
+    setHasChecked(false);
+    setExplanation("");
+    if (!initialLearnerRows) {
+      setRows(
+        Array.from({ length: expectedPassCount || 3 }, (_, idx) => ({
+          passNumber: idx + 1,
+          loopVarValue: "",
+          accumulatorValue: "",
+        }))
+      );
+    }
+  }, [configSignature, expectedPassCount, readOnly]);
 
   const activeFrame = actualFrames[currentStep] || actualFrames[0];
 
@@ -415,40 +431,36 @@ export default function TraceTableTool({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden my-4">
-      {/* Header Bar & Tab Switcher */}
+      {/* Header Bar */}
       <div className="bg-slate-50/90 border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Terminal className="w-4 h-4 text-indigo-600" />
-          <span className="font-semibold text-xs text-slate-800">
-            Interactive Code & Execution Studio
-          </span>
+          {readOnly ? (
+            <>
+              <Play className="w-4 h-4 text-indigo-600 fill-indigo-600" />
+              <span className="font-semibold text-xs text-slate-800">
+                Interactive Step Walkthrough Stepper
+              </span>
+              <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full font-semibold ml-1">
+                Guided Stepper
+              </span>
+            </>
+          ) : (
+            <>
+              <Terminal className="w-4 h-4 text-indigo-600" />
+              <span className="font-semibold text-xs text-slate-800">
+                Variable Trace Prediction Grid
+              </span>
+              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold ml-1">
+                Fill-in Workspace
+              </span>
+            </>
+          )}
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-[11px] font-medium">
-          <button
-            type="button"
-            onClick={() => setViewMode("step")}
-            className={`px-3 py-1 rounded-md transition cursor-pointer ${
-              viewMode === "step"
-                ? "bg-white text-indigo-600 shadow-2xs font-semibold"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Step-by-Step Stepper
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("predict")}
-            className={`px-3 py-1 rounded-md transition cursor-pointer ${
-              viewMode === "predict"
-                ? "bg-white text-indigo-600 shadow-2xs font-semibold"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Trace Table
-          </button>
-        </div>
+        {/* View Mode indicator */}
+        <span className="text-[11px] text-slate-500 font-mono">
+          {readOnly ? "Frame-by-frame simulation" : `Expected passes: ${expectedPassCount || 3}`}
+        </span>
       </div>
 
       {/* Editor & Execution Panel */}
