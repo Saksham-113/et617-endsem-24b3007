@@ -17,9 +17,8 @@ export default function AboutPage() {
             <span>Return to Learning Bench</span>
           </Link>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Identity:</span>
-            <span className="font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-bold text-indigo-600 text-xs">
-              24b3007
+            <span className="font-mono bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200 font-bold text-indigo-600 text-xs">
+              Roll No: 24b3007
             </span>
           </div>
         </div>

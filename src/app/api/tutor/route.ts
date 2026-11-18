@@ -1,124 +1,99 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { GoogleGenAI } from "@google/genai";
-import { getTaskById, TASK_BANK } from "@/lib/curriculum";
-import { evaluateDecisionRule, LearnerSubmissionSignals } from "@/lib/decisionRule";
+import { getTaskById, TaskDefinition } from "@/lib/curriculum";
 
-// Output validation schema for AI tutor
-const TutorResponseSchema = z.object({
+const AiResponseSchema = z.object({
   isCorrect: z.boolean(),
   diagnosedMisconception: z.enum(["M1", "M2", "PREREQ", "NONE", "OTHER"]),
-  explanationEvaluation: z.string().min(5),
   explanationScore: z.number().min(0).max(1),
-  decisionOutcome: z.enum(["HARDER_QUESTION", "ALTERNATIVE_EXPLANATION", "PREREQUISITE_INSTRUCTION"]),
-  rationale: z.string().min(5),
-  supportiveFeedback: z.string().min(5),
-  suggestedAction: z.string(),
-  generatedFollowUp: z
-    .object({
-      title: z.string(),
-      prompt: z.string(),
-      codeSnippet: z.string(),
-      hint: z.string(),
-    })
-    .optional(),
+  aiReply: z.string().min(5),
+  nextAction: z.enum(["ADVANCE", "PARALLEL_PRACTICE"]),
+  suggestedTaskId: z.string().optional(),
 });
-
-export type TutorResponse = z.infer<typeof TutorResponseSchema> & {
-  isFallback: boolean;
-  engineUsed: string;
-};
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      taskId = "task_1_trace_basic",
-      learnerInput,
+      taskId = "mod1_ex1_trace",
+      learnerAnswer,
       learnerExplanation = "",
       attemptCount = 1,
-      consecutiveErrorsOnTier = 0,
       hintsRequested = 0,
-      timeSpentSeconds = 30,
-      explicitStuckSignal = false,
-      preliminaryMisconception = "NONE",
       preliminaryIsCorrect = false,
+      preliminaryMisconception = "NONE",
     } = body;
 
     const task = getTaskById(taskId);
-
-    // Check if GEMINI_API_KEY is available
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      // Deterministic fallback using curriculum.ts and decisionRule.ts
-      return handleDeterministicFallback(
-        task,
-        {
-          taskId,
-          isCorrect: preliminaryIsCorrect,
-          diagnosedMisconception: preliminaryMisconception,
-          attemptCount,
-          consecutiveErrorsOnTier,
-          hintsRequested,
-          explanationScore: evaluateExplanationLocally(learnerExplanation, task.expectedExplanationKeywords),
-          explicitStuckSignal,
-          timeSpentSeconds,
-        },
-        "Offline Deterministic Pedagogical Engine (No GEMINI_API_KEY provided)"
+      return NextResponse.json(
+        handleDeterministicFallback(
+          task,
+          learnerAnswer,
+          learnerExplanation,
+          preliminaryIsCorrect,
+          preliminaryMisconception,
+          "Deterministic Engine (Offline / No GEMINI_API_KEY)"
+        )
       );
     }
 
-    // Call Gemini 3.8 Flash with structured JSON output
     try {
       const ai = new GoogleGenAI({ apiKey });
 
       const prompt = `
-You are LoopStep, a warm, reassuring, expert Python tutor for Class 10 CBSE students who have failed programming before and suffer from high test anxiety (Learner Persona: Aarav Kulkarni, age 15).
-Student ID: 24b3007.
+You are LoopStep, an empathetic, encouraging expert Python tutor for Class 10 CBSE student Aarav Kulkarni (Roll No: 24b3007), who experiences high programming anxiety and low self-efficacy.
 
 CURRENT TASK:
 Title: ${task.title}
+Chapter: ${task.chapterSource}
 Prompt: ${task.prompt}
 Code:
 ${task.codeSnippet}
 Model Answer: ${task.modelAnswer}
 
 LEARNER SUBMISSION:
-Learner Input: ${JSON.stringify(learnerInput)}
-Learner Explanation (in their own words): "${learnerExplanation}"
-Attempts so far: ${attemptCount}
-Hints used: ${hintsRequested}
-Consecutive errors on this tier: ${consecutiveErrorsOnTier}
-Explicitly stuck clicked: ${explicitStuckSignal}
-Preliminary check: isCorrect=${preliminaryIsCorrect}, misconception=${preliminaryMisconception}
+Learner Answer / Trace Input: ${JSON.stringify(learnerAnswer)}
+Learner Explanation (Mandatory Textarea): "${learnerExplanation}"
+Attempt Count: ${attemptCount}
+Hints Requested: ${hintsRequested}
+Preliminary Check: isCorrect = ${preliminaryIsCorrect}, misconception = ${preliminaryMisconception}
 
-YOUR PEDAGOGICAL TASKS:
-1. Evaluate learner explanation and inputs for:
-   - Misconception M1: Inclusive upper bound fallacy (thinking range(start, stop) includes stop).
-   - Misconception M2: Accumulator overwrite (thinking total = i remembers past values instead of overwriting).
-   - Prerequisite confusion: unable to trace basic assignment statements.
-2. Apply the 3-Way Decision Rule:
-   - "HARDER_QUESTION": If correct on 1st attempt with 0 hints and solid explanation (score >= 0.75).
-   - "ALTERNATIVE_EXPLANATION": If answer shows M1 or M2, or code worked but explanation is confused. Give warm Stop Sign or Piggy Bank visual metaphor feedback.
-   - "PREREQUISITE_INSTRUCTION": If 2+ consecutive errors, or basic variable update confusion, or learner clicked stuck.
-3. Keep tone conversational, encouraging ("we", "let's"), never harsh or punitive.
+EVALUATION RULES:
+1. Determine "isCorrect": true if their answer/trace matches the model answer; false if it diverged.
+2. Determine "diagnosedMisconception":
+   - "M1" if they think range(start, stop) includes stop (inclusive upper-bound fallacy).
+   - "M2" if they think total = i remembers past values or resets inside the loop (accumulator overwrite).
+   - "NONE" if correct.
+   - "OTHER" if wrong due to other arithmetic or logic.
+3. Determine "explanationScore" (0.0 to 1.0):
+   - Evaluate the learner's explanation in "${learnerExplanation}".
+   - If the answer is correct and their explanation shows clear reasoning (e.g. explains stopping before the bound, cumulative addition in the accumulator, or condition test), award >= 0.75 (e.g. 0.85 to 0.95).
+   - If their explanation is vague, empty, or shows misconception, award < 0.75.
+4. Compose "aiReply":
+   - 2 to 3 sentences in conversational, warm, human tone (first-person plural: "let's", "you noticed", "great work").
+   - IF isCorrect && explanationScore >= 0.75: Praise their explanation directly and specifically ("Spot on thinking! You clearly understood that...").
+   - IF wrong or misconception detected: State gently what part of the logic diverged using the Stop Sign or Piggy Bank metaphor without punitive language.
+5. Determine "nextAction":
+   - "ADVANCE" if isCorrect is true AND explanationScore >= 0.75.
+   - "PARALLEL_PRACTICE" if not correct OR explanationScore < 0.75.
 
-Respond in strict JSON with the schema:
+Respond ONLY with valid JSON conforming to this schema:
 {
   "isCorrect": boolean,
   "diagnosedMisconception": "M1" | "M2" | "PREREQ" | "NONE" | "OTHER",
-  "explanationEvaluation": "Warm evaluation of student explanation",
   "explanationScore": number between 0.0 and 1.0,
-  "decisionOutcome": "HARDER_QUESTION" | "ALTERNATIVE_EXPLANATION" | "PREREQUISITE_INSTRUCTION",
-  "rationale": "Clear reason for this pedagogical decision",
-  "supportiveFeedback": "Conversational feedback addressed to Aarav",
-  "suggestedAction": "What student should do next"
+  "aiReply": string,
+  "nextAction": "ADVANCE" | "PARALLEL_PRACTICE",
+  "suggestedTaskId": string optional
 }
 `;
 
-      // Call with timeout to guarantee low latency
-      const response = await ai.models.generateContent({
+      // Call Gemini 3.8 Flash with structured JSON and 5s timeout
+      const aiPromise = ai.models.generateContent({
         model: "gemini-3.8-flash",
         contents: prompt,
         config: {
@@ -127,31 +102,41 @@ Respond in strict JSON with the schema:
         },
       });
 
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI generation timeout after 5000ms")), 5000)
+      );
+
+      const response: any = await Promise.race([aiPromise, timeoutPromise]);
       const responseText = response.text?.trim() || "";
-      const parsedJson = JSON.parse(responseText);
-      const validated = TutorResponseSchema.parse(parsedJson);
+      const parsed = JSON.parse(responseText);
+      const validated = AiResponseSchema.parse(parsed);
+
+      const isAdvance = validated.isCorrect && validated.explanationScore >= 0.75;
+      const targetTaskId = isAdvance
+        ? task.nextHarderTaskId || task.id
+        : task.nextAltTaskId || task.id;
+      const nextTask = getTaskById(targetTaskId);
 
       return NextResponse.json({
-        ...validated,
-        isFallback: false,
-        engineUsed: "Gemini 3.8 Flash (Live Structured API)",
+        isCorrect: validated.isCorrect,
+        diagnosedMisconception: validated.diagnosedMisconception,
+        explanationScore: validated.explanationScore,
+        aiReply: validated.aiReply,
+        nextAction: isAdvance ? "ADVANCE" : "PARALLEL_PRACTICE",
+        nextTask,
+        fallbackUsed: false,
       });
     } catch (aiErr: any) {
-      console.warn("AI generation error or timeout; switching to fallback:", aiErr?.message);
-      return handleDeterministicFallback(
-        task,
-        {
-          taskId,
-          isCorrect: preliminaryIsCorrect,
-          diagnosedMisconception: preliminaryMisconception,
-          attemptCount,
-          consecutiveErrorsOnTier,
-          hintsRequested,
-          explanationScore: evaluateExplanationLocally(learnerExplanation, task.expectedExplanationKeywords),
-          explicitStuckSignal,
-          timeSpentSeconds,
-        },
-        `Deterministic Fallback Engine (Gemini fallback: ${aiErr?.message || "timeout"})`
+      console.warn("Gemini 3.8 Flash call failed or timed out; activating deterministic fallback:", aiErr?.message);
+      return NextResponse.json(
+        handleDeterministicFallback(
+          task,
+          learnerAnswer,
+          learnerExplanation,
+          preliminaryIsCorrect,
+          preliminaryMisconception,
+          `Deterministic Fallback Engine (Gemini: ${aiErr?.message || "timeout"})`
+        )
       );
     }
   } catch (err: any) {
@@ -163,37 +148,60 @@ Respond in strict JSON with the schema:
 }
 
 function evaluateExplanationLocally(text: string, keywords?: string[]): number {
-  if (!text || text.trim().length < 5) return 0.5;
-  if (!keywords || keywords.length === 0) return 0.8;
+  if (!text || text.trim().length < 5) return 0.45;
   const lower = text.toLowerCase();
+  if (!keywords || keywords.length === 0) {
+    return text.trim().split(/\s+/).length >= 5 ? 0.85 : 0.6;
+  }
   let matches = 0;
   for (const kw of keywords) {
     if (lower.includes(kw.toLowerCase())) matches++;
   }
-  const ratio = matches / Math.min(keywords.length, 3);
-  return Math.min(Math.max(ratio, 0.4), 1.0);
+  if (matches >= 2) return 0.9;
+  if (matches === 1) return 0.8;
+  return text.trim().split(/\s+/).length >= 6 ? 0.75 : 0.55;
 }
 
 function handleDeterministicFallback(
-  task: any,
-  signals: LearnerSubmissionSignals,
+  task: TaskDefinition,
+  learnerAnswer: any,
+  learnerExplanation: string,
+  preliminaryIsCorrect: boolean,
+  preliminaryMisconception: "M1" | "M2" | "PREREQ" | "NONE" | "OTHER",
   engineName: string
 ) {
-  const decision = evaluateDecisionRule(task, signals);
+  const explanationScore = evaluateExplanationLocally(
+    learnerExplanation,
+    task.expectedExplanationKeywords
+  );
 
-  return NextResponse.json({
-    isCorrect: signals.isCorrect,
-    diagnosedMisconception: signals.diagnosedMisconception || "NONE",
-    explanationEvaluation:
-      signals.explanationScore && signals.explanationScore >= 0.7
-        ? "Your explanation accurately captures why this behavior occurred!"
-        : "Let's reinforce the distinction between stopping before the bound and updating the accumulator.",
-    explanationScore: signals.explanationScore || 0.7,
-    decisionOutcome: decision.outcome,
-    rationale: decision.rationale,
-    supportiveFeedback: decision.feedbackBody,
-    suggestedAction: decision.feedbackHeader,
-    isFallback: true,
+  const isAdvance = preliminaryIsCorrect && explanationScore >= 0.75;
+  const targetTaskId = isAdvance
+    ? task.nextHarderTaskId || task.id
+    : task.nextAltTaskId || task.id;
+  const nextTask = getTaskById(targetTaskId);
+
+  let aiReply = "";
+  if (isAdvance) {
+    aiReply = task.feedbackCorrect;
+  } else if (preliminaryMisconception === "M1") {
+    aiReply = task.feedbackM1;
+  } else if (preliminaryMisconception === "M2") {
+    aiReply = task.feedbackM2;
+  } else if (!preliminaryIsCorrect) {
+    aiReply = "Let's review the step trace together. Notice where the values diverged from your prediction!";
+  } else {
+    aiReply = "Your answer was correct! Let's strengthen your explanation by noting how the loop boundary and accumulator operate.";
+  }
+
+  return {
+    isCorrect: preliminaryIsCorrect,
+    diagnosedMisconception: preliminaryMisconception,
+    explanationScore,
+    aiReply,
+    nextAction: isAdvance ? "ADVANCE" : "PARALLEL_PRACTICE",
+    nextTask,
+    fallbackUsed: true,
     engineUsed: engineName,
-  });
+  };
 }

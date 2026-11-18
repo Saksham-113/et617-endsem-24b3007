@@ -37,7 +37,7 @@ export default function PauseOverlay({ remainingSeconds, stageName, onResume }: 
           className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-xs flex items-center justify-center gap-2 cursor-pointer text-xs"
         >
           <Play className="w-3.5 h-3.5 fill-white" />
-          <span>Resume Session</span>
+          <span>Resume Right Where You Left Off</span>
         </button>
       </div>
     </div>

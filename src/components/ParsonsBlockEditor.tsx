@@ -4,7 +4,7 @@ import { ArrowUp, ArrowDown, CheckCircle2, AlertCircle, Play, Sparkles } from "l
 
 interface ParsonsBlockEditorProps {
   initialBlocks: ParsonsBlock[];
-  onCheck: (isCorrect: boolean, feedback: string, diagnosedM2: boolean) => void;
+  onCheck: (isCorrect: boolean, feedback: string, diagnosedM2: boolean, explanation: string) => void;
   readOnly?: boolean;
 }
 
@@ -14,6 +14,7 @@ export default function ParsonsBlockEditor({
   readOnly = false,
 }: ParsonsBlockEditorProps) {
   const [blocks, setBlocks] = useState<ParsonsBlock[]>(initialBlocks);
+  const [explanation, setExplanation] = useState<string>("");
   const [checkedResult, setCheckedResult] = useState<{
     checked: boolean;
     isCorrect: boolean;
@@ -65,28 +66,28 @@ export default function ParsonsBlockEditor({
     if (!orderMismatch && !indentMismatch) {
       const msg = "Spot on! The running total starts outside at 0, the accumulator updates inside the loop, and print runs after completion.";
       setCheckedResult({ checked: true, isCorrect: true, feedback: msg });
-      onCheck(true, msg, false);
+      onCheck(true, msg, false, explanation);
       return;
     }
 
     if (totalZeroInsideLoop) {
       const msg = "Watch out: indenting total = 0 puts it inside the loop, resetting your sum back to zero on every pass. Keep it outside above the for loop!";
       setCheckedResult({ checked: true, isCorrect: false, feedback: msg });
-      onCheck(false, msg, true);
+      onCheck(false, msg, true, explanation);
       return;
     }
 
     if (orderMismatch) {
       const msg = "Check the execution sequence: initialize total = 0 first, then start the loop, then print the result.";
       setCheckedResult({ checked: true, isCorrect: false, feedback: msg });
-      onCheck(false, msg, false);
+      onCheck(false, msg, false, explanation);
       return;
     }
 
     if (indentMismatch) {
       const msg = "The ordering is correct, but check the indentation! Which statement should repeat inside the loop?";
       setCheckedResult({ checked: true, isCorrect: false, feedback: msg });
-      onCheck(false, msg, false);
+      onCheck(false, msg, false, explanation);
       return;
     }
   };
@@ -166,6 +167,22 @@ export default function ParsonsBlockEditor({
             </div>
           ))}
         </div>
+
+        {/* Mandatory Explanation Textarea */}
+        {!readOnly && (
+          <div className="pt-2">
+            <label className="font-semibold text-slate-700 block mb-1 text-xs">
+              Explain your thinking in 1–2 sentences: why does this loop give your answer?
+            </label>
+            <textarea
+              rows={2}
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              placeholder="e.g. We initialize total outside so it isn't reset, and accumulate total = total + num inside..."
+              className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        )}
 
         {/* Action Button */}
         {!readOnly && (

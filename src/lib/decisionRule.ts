@@ -50,7 +50,7 @@ export function evaluateDecisionRule(
     signals.consecutiveErrorsOnTier >= 2 ||
     signals.diagnosedMisconception === "PREREQ"
   ) {
-    const nextTask = getTaskById(currentTask.nextPrereqTaskId || "task_prereq_assignment");
+    const nextTask = getTaskById(currentTask.nextAltTaskId || currentTask.id);
     return {
       outcome: "PREREQUISITE_INSTRUCTION",
       rationale:
@@ -63,7 +63,7 @@ export function evaluateDecisionRule(
       nextTier: 1,
       feedbackHeader: "🌱 Taking a Gentle Step Back (No Rush!)",
       feedbackBody:
-        "Programming is all about building strong foundations. Let's step away from loops for just 60 seconds and look at how variables remember and update values one line at a time. Once this feels effortless, we will slide right back!",
+        "Programming is all about building strong foundations. Let's trace how variables remember and update values one line at a time. Once this feels effortless, we will slide right back!",
       scaffoldingUnlocked: {
         showTraceVisualizer: false,
         showVisualMetaphor: "VARIABLE_BOX",

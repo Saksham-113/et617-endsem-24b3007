@@ -12,8 +12,8 @@ export default function Footer() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px] font-medium">
-            24b3007
+          <span className="font-mono text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200 text-xs font-semibold">
+            Roll No: 24b3007
           </span>
           <span className="text-slate-300">·</span>
           <Link

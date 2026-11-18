@@ -10,101 +10,143 @@
 
 | Field | Code | Description |
 | :--- | :--- | :--- |
-| **Problem Statement (P)** | **P4** | **Adaptive tutor with automatic question generation** (*Adaptive learning · Assessment · Generative AI*). Goes beyond multiple-choice: supports 3+ question formats, evaluates learner explanations, diagnoses misconceptions, and dynamically adjusts difficulty/nature of the next task. |
-| **Subject Content (T)** | **P4-T10** | **Loops in block or Python programming (Classes 8–11)**: `for` loops, `range(stop)`, `range(start, stop)`, `range(start, stop, step)`, accumulator patterns (`total = total + i`), and indentation scope. |
-| **Learner Context (L)** | **L5** | **Learner repeating the topic after failing it once; high anxiety and low self-efficacy** (Expanded persona: Aarav Kulkarni, 15, Class 10 CBSE student repeating Python unit after 32% midterm). |
-| **Design Constraint (C)** | **C4** | **10-minute sessions**: One complete learning sequence fits in 10 minutes; learner can stop/pause and resume where they left off with zero data loss. |
-| **Identity Token (ID)** | **24b3007** | Displayed in the footer of every screen and on the dedicated `/about` screen. |
+| **Problem Statement (P)** | **P4** | **Adaptive tutor with automatic question generation** (*Adaptive learning · Assessment · Generative AI*). Goes beyond multiple-choice: supports 3 question formats (Trace Grid, Parsons Code Ordering, Bug-Fix & Explain), evaluates mandatory learner explanations via Gemini 3.8 Flash, diagnoses misconceptions (**M1** and **M2**), and dynamically branches to harder challenges or parallel practice. |
+| **Subject Content (T)** | **P4-T10** | **Loops in Python (Classes 8–11)** based on *Python Crash Course* by Eric Matthes (Chapters 2–6, skipping Chapter 1): `for` loops, `range(stop)`, `range(start, stop)`, `range(start, stop, step)`, accumulator patterns (`total = total + i` vs whiteboard overwrite `total = i`), and conditional filtering (`if` in loops). |
+| **Learner Context (L)** | **L5** | **Repeating learner, high anxiety & low self-efficacy** (Persona: Aarav Kulkarni, 15, Class 10 CBSE student repeating the Python unit after a 32% midterm). Features anxiety-reducing sage-green/amber cards, first-person plural tone, and interactive frame-by-frame memory offloading. |
+| **Design Constraint (C)** | **C4** | **10-minute sessions with stop/resume**: 3 self-contained 10-minute modules. Starts cleanly at the Module Selector with a fresh `10:00` timer (no intrusive resume banners). Working in-session **"Pause & Save"** freezes countdown and opens pause modal with **"Resume Right Where You Left Off"**. |
+| **Identity Token (ID)** | **24b3007** | Prominently displayed in the footer of every screen (`Roll No: 24b3007`) and on the dedicated `/about` screen. |
 
 ---
 
-## 2. UI/UX Research & Anti-Generic Design System
+## 2. 3 x 10-Minute Book-Chapter Modules (Skipping Chapter 1)
 
-Rather than a generic template, LoopStep synthesizes three specialized educational interfaces tailored specifically to reduce situational programming anxiety for Aarav (L5):
+Curriculum is structured directly from *Python Crash Course* into 3 self-contained 10-minute learning units:
 
-1. **Python Tutor (`pythontutor.com`):**
-   * *Affordance adapted:* Interactive execution stepper (`< Prev`, `Next >`, `Reset`), active code line execution arrows, and step-by-step variable memory frames (`i` and `total` boxes).
-   * *Pedagogical benefit:* Offloads working memory so anxious learners don't have to mentally juggle changing variable values.
-2. **Runestone Academy Parsons Problems:**
-   * *Affordance adapted:* Accessible button-driven code reordering (`↑ Move Up`, `↓ Move Down`, `Indent`, `Outdent`) with visual indentation guides.
-   * *Pedagogical benefit:* Eliminates syntax typing errors and blank-slate editor freeze, allowing the learner to focus purely on logical sequence and scope.
-3. **Brilliant.org & Khan Academy:**
-   * *Aesthetic adapted:* Warm tactile notebook palette: off-white paper canvas (`#FAF8F5`), crisp white cards (`#FFFFFF`), subtle stone borders (`#E7E5E4`), deep charcoal ink (`#1C1917`), calm sage green (`#15803D`) for mastery, and warm amber (`#B45309`) for gentle misconception alerts (never harsh red error banners).
-   * *Pedagogical benefit:* Conversational first-person plural tone ("we", "let's explore") frames errors as clues, preserving learner agency and self-efficacy.
+1. **Module 1 (Ch. 2 & 3): `for` Loops & `range(start, stop, step)` Boundaries**
+   * *150-Word Micro-Lesson:* Unpacks the half-open interval rule, explaining why Python stops right *before* `stop` (the Stop Sign metaphor) and how step increments jump through values.
+   * *Interactive Step Walkthrough:* Scrub frame-by-frame through `for i in range(1, 4): print(i)` before attempting exercises.
+   * *4 Exercises:*
+     - Ex 1: Trace Grid (`range(1, 4)` stop boundary).
+     - Ex 2: Button Parsons Block Assembly (step size 2: `range(2, 7, 2)`).
+     - Ex 3: Bug-Fix & Explain (repairing off-by-one boundary: `range(1, 5)` vs `range(1, 6)`).
+     - Ex 4: Challenge Trace Grid (`range(3, 10, 3)`).
+     - Parallel practice tasks provided for isomorphic remediation.
 
----
+2. **Module 2 (Ch. 4): Accumulator Patterns & Variable State Updates**
+   * *150-Word Micro-Lesson:* Deconstructs memory updates using the Piggy Bank vs. Whiteboard metaphor: `total = total + i` preserves and adds to prior memory, while `total = i` wipes prior state clean.
+   * *Interactive Step Walkthrough:* Step frame-by-frame through `total = total + i` showing the running sum updating 0 &rarr; 1 &rarr; 3 &rarr; 6.
+   * *4 Exercises:*
+     - Ex 1: Trace Grid (cumulative addition across `range(1, 5)`).
+     - Ex 2: Button Parsons Block Assembly (ordering `count = 0` outside loop vs increment inside).
+     - Ex 3: Bug-Fix & Explain (repairing whiteboard overwrite bug `total = num`).
+     - Ex 4: Challenge Trace Grid (multiplicative accumulator `product = product * n`).
+     - Parallel practice tasks provided for isomorphic remediation.
 
-## 3. Mandatory P4 Design Challenge: 3-Way Decision Rule Engine
-
-LoopStep implements an explicit, deterministic + AI-verified 3-way decision rule combining learner performance, diagnosed misconceptions (**M1** and **M2**), and interaction signals (attempts, hints used, stuck clicks):
-
-| Signal & Performance Condition | Tutor Decision Outcome | Pedagogical Action in UI |
-| :--- | :--- | :--- |
-| **Correct on 1st attempt** (0 hints used) **AND** explanation passes semantic check (`score >= 0.75`) | **Outcome 1: Harder Question** | Promotes difficulty tier (`Tier 1 -> Tier 2 -> Tier 3`), e.g., introducing negative step sizes `range(10, 4, -2)`. |
-| **Incorrect due to M1 or M2** (1st/2nd error on current tier) **OR** code correct with flawed explanation | **Outcome 2: Alternative Explanation** | Holds current tier; unlocks the **Interactive Divergence Trace Visualizer** spotlighting the exact pass where prediction failed; presents Stop Sign (M1) or Piggy Bank (M2) visual metaphor; serves isomorphic parallel practice task. |
-| **2 consecutive failures** on same tier **OR** basic variable update confusion **OR** clicks *"I'm stuck — take a step back"* | **Outcome 3: Prerequisite Instruction** | Steps down to a 60-second **Prerequisite Micro-Card** (`score = 2` -> `score = score + 3` -> `score = score + 4`) before gently returning to the loop activity. |
-
-All three outcomes are visibly demonstrable on the live application and testable via the **Viva Examiner Quick-Paths** toolbar in the bottom-right corner.
-
----
-
-## 4. Constraint C4 Architecture (10-Minute Stop & Resume)
-
-1. **5 Time-Boxed Micro-Stages (8–10 mins total):**
-   * *Stage 1:* Welcome & Calm Reassurance / Saved Session Check (1 min)
-   * *Stage 2:* Low-Stakes Warmup Diagnostic (1 min)
-   * *Stage 3:* Visual Micro-Concept & Interactive Tracer Tool (2 min)
-   * *Stage 4:* Adaptive Loop Practice Arena (Formats A, B, C) (4 min)
-   * *Stage 5:* Session Mastery & Re-Test Review (2 min)
-2. **Zero-Loss Pause & Resume:**
-   * Prominent **"Pause & Save"** button in top header.
-   * Freezes the countdown timer and obscures the problem to relieve time anxiety.
-   * Persists snapshot (`elapsedSeconds`, `stageIndex`, `difficultyTier`, `activeTaskId`) in `localStorage`.
-   * On page reload, prompts: *"Resume right where you left off"*.
+3. **Module 3 (Ch. 5 & 6): Conditional Filtering & Loop Debugging**
+   * *150-Word Micro-Lesson:* Explains how conditional `if` statements inside loops selectively filter data, how indentation scope controls execution, and how to debug inverted comparison operators.
+   * *Interactive Step Walkthrough:* Step frame-by-frame through `if n % 2 == 0: total = total + n`.
+   * *4 Exercises:*
+     - Ex 1: Trace Grid (conditional threshold filter `if x > 2:`).
+     - Ex 2: Button Parsons Block Assembly (conditional even-number summer).
+     - Ex 3: Bug-Fix & Explain (repairing inverted filter `if n < 3:` to `if n > 3:`).
+     - Ex 4: Challenge Trace Grid (counting even matches with `count = count + 1`).
+     - Parallel practice tasks provided for isomorphic remediation.
 
 ---
 
-## 5. System Architecture & File Map (Deliverables D1–D8)
+## 3. Mandatory Explanation `<textarea>` on Every Exercise
+
+To diagnose mental models rather than lucky guesses, **every single exercise format** renders a prominent `<textarea>`:
+> *"Explain your thinking in 1–2 sentences: why does this loop give your answer?"*
+
+When submitted, both `learnerAnswer` (the trace rows, code order, or selected bug fix) and `learnerExplanation` are transmitted to `POST /api/tutor`.
+
+---
+
+## 4. Real Live AI Replies & Dynamic Branching (`/api/tutor`)
+
+The tutor calls Google's **Gemini 3.8 Flash** (`@google/genai`, `responseMimeType: "application/json"`) to evaluate student submissions against a strict schema:
+```json
+{
+  "isCorrect": boolean,
+  "diagnosedMisconception": "M1" | "M2" | "PREREQ" | "NONE" | "OTHER",
+  "explanationScore": number,
+  "aiReply": string,
+  "nextAction": "ADVANCE" | "PARALLEL_PRACTICE",
+  "nextTask": TaskDefinition,
+  "fallbackUsed": boolean
+}
+```
+
+### UI Presentation & Branching Rules:
+* **If `isCorrect && explanationScore >= 0.75`:**
+  * Displays a **sage-green AI reply card** (`#eef7ee` with emerald border) with praise evaluating their specific explanation.
+  * Shows an **"Advance to Harder Challenge →"** button that immediately loads `nextTask` at higher difficulty.
+  * **Never displays "Inspect Trace Table" or "Try Parallel Practice" when the answer is correct.**
+* **If wrong or misconception detected (`!isCorrect || explanationScore < 0.75`):**
+  * Displays an **amber AI reply card** (`#fff9eb` with amber border) with supportive diagnostic feedback.
+  * Displays a clear **divergence trace** highlighting where and why the loop prediction diverged.
+  * Shows a working **"Try Parallel Practice →"** button that immediately loads the isomorphic parallel challenge and resets all inputs.
+  * Shows a working **"Next Exercise →"** button so the anxious learner is never trapped or stalled.
+* **Deterministic Fallback Guarantee:** If `GEMINI_API_KEY` is absent or the API times out (>5s), LoopStep smoothly falls back to its deterministic pedagogical engine with zero user disruption.
+
+---
+
+## 5. Constraint C4 Architecture (Fresh Startup + In-Session Pause/Resume)
+
+1. **Clean Startup:**
+   * Never auto-loads `localStorage` on page mount.
+   * Completely removes the `"Resume Previous Session"` banner from the home screen.
+   * Always begins cleanly at the Module Selector with a fresh `10:00` countdown timer.
+2. **In-Session Stop & Resume:**
+   * Inside an active module, learners can click the **"Pause & Save"** button in the top bar.
+   * Freezes the `10:00` countdown immediately and saves the session snapshot.
+   * Opens a distraction-free pause modal displaying remaining time with a prominent **"Resume Right Where You Left Off"** button.
+   * Resuming unfreezes the countdown without losing any inputs.
+
+---
+
+## 6. System Architecture & File Structure
 
 ```
 et617-endsem-24b3007/
-├── DESIGN.md                          # D1, D2, D3 design document (committed by 0:30)
-├── README.md                          # Live engineering log, card metadata, Viva instructions
-├── package.json                       # Next.js 14, React 18, Tailwind, lucide-react, zod, @google/genai
-├── tsconfig.json                      # Strict TypeScript compiler options
+├── README.md                          # Live engineering spec & exam documentation
+├── DESIGN.md                          # D1, D2, D3 pedagogical design document
+├── package.json                       # Next.js 14, React 18, Tailwind, @google/genai, zod, lucide-react
+├── tsconfig.json                      # Strict TypeScript compiler configuration
 ├── tailwind.config.ts                 # Tactile notebook color palette
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx                 # Root layout with identity token (24b3007)
-│   │   ├── page.tsx                   # 5 connected screens/states + C4 pause/resume overlay (D4)
+│   │   ├── layout.tsx                 # Root layout with identity metadata (24b3007)
+│   │   ├── page.tsx                   # Clean Module Selector + 3 active modules + C4 pause/resume
 │   │   ├── about/
-│   │   │   └── page.tsx               # Dedicated About page with ID 24b3007, AI Spec (D6), Rationale (D7)
+│   │   │   └── page.tsx               # Dedicated About page with Roll No: 24b3007 & AI specification
 │   │   └── api/
 │   │       └── tutor/
-│   │           └── route.ts           # Gemini 3.8 Flash structured API call + Zod guardrail + fallback (D6)
+│   │           └── route.ts           # Gemini 3.8 Flash structured API call + Zod guardrail + fallback
 │   ├── components/
-│   │   ├── SessionHeader.tsx          # 10-minute timer, stage dots, Pause & Save button (C4)
-│   │   ├── PauseOverlay.tsx           # Distraction-free pause screen with resume button (C4)
-│   │   ├── TraceTableTool.tsx         # Interactive variable trace bench & divergence highlighter (T6)
-│   │   ├── ParsonsBlockEditor.tsx     # Format B: Button-based Parsons code ordering
-│   │   ├── BugFixExplainer.tsx        # Format C: Bug repair + plain-English explanation evaluator
-│   │   ├── DecisionOutcomeModal.tsx   # Visibly renders Outcomes 1, 2, and 3 with metaphors
-│   │   ├── VivaScenarioSwitcher.tsx   # Live examiner toggle for Correct Path vs. Misconception Paths (D5)
-│   │   └── Footer.tsx                 # Roll number (24b3007) and card metadata
+│   │   ├── SessionHeader.tsx          # Top bar with 10:00 timer & Pause & Save button
+│   │   ├── PauseOverlay.tsx           # Pause modal with "Resume Right Where You Left Off"
+│   │   ├── TraceTableTool.tsx         # Trace Grid tool with mandatory explanation textarea & stepper
+│   │   ├── ParsonsBlockEditor.tsx     # Button-based Parsons block assembly with explanation textarea
+│   │   ├── BugFixExplainer.tsx        # Bug repair with mandatory explanation textarea
+│   │   └── Footer.tsx                 # Persistent footer with Roll No: 24b3007
 │   └── lib/
-│       ├── loopTracer.ts              # Pure TypeScript Python loop execution tracer & divergence detector
-│       ├── curriculum.ts              # D3 task bank (5+ tasks across 3 formats) + D6 fallback bank
-│       ├── decisionRule.ts            # 3-way decision rule engine (Harder / Alt / Prereq)
+│       ├── curriculum.ts              # 3 modules (Ch 2–6), 150-word lessons, walkthroughs, 4 exercises
+│       ├── loopTracer.ts              # Python loop execution tracer, conditionals & divergence detector
+│       ├── decisionRule.ts            # Pedagogical decision engine & fallback logic
 │       └── sessionStore.ts            # LocalStorage persistence manager for C4 pause/resume
 ```
 
 ---
 
-## 6. Build Log & Milestones
+## 7. Verification & Build Confirmation
 
-* **[Milestone 1 — 0:15]:** Repository configured with origin `Saksham-113/et617-endsem-24b3007` on `main`.
-* **[Milestone 2 — 0:25]:** Authored and committed `DESIGN.md` covering D1–D3, L5 expanded persona, M1/M2 root causes, and C4 architecture (Commit: `0e5741e`, updated: `8963995`).
-* **[Milestone 3 — 0:40]:** Scaffolded Next.js App Router, Tailwind CSS, TypeScript, and installed `@google/genai`, `zod`, `lucide-react`.
-* **[Milestone 4 — 0:50]:** Implemented pure TypeScript engines: `loopTracer.ts` (execution tracer & divergence finder), `curriculum.ts` (3+ non-MCQ formats), `decisionRule.ts` (3-way decision engine), and `sessionStore.ts` (C4 pause/resume persistence).
-* **[Milestone 5 — 0:55]:** Built interactive UI components: `TraceTableTool`, `ParsonsBlockEditor`, `BugFixExplainer`, `DecisionOutcomeModal`, `SessionHeader`, `PauseOverlay`, `Footer`, `VivaScenarioSwitcher`, and dedicated `/about` page with roll number `24b3007`.
-* **[Milestone 6 — 1:00]:** First live deployment ready on Vercel at `https://et617-24b3007.vercel.app`.
+To build and verify LoopStep locally:
+```bash
+npm install
+npm run build
+npm start
+```
+* **Build status:** Zero TypeScript errors, zero lint warnings, static pages and API routes compiled cleanly.
+* **Roll Number:** `24b3007` verified in all footers and the `/about` screen.

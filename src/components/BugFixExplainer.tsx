@@ -101,10 +101,10 @@ export default function BugFixExplainer({
           </div>
         </div>
 
-        {/* Explanation Input */}
+        {/* Mandatory Explanation Input */}
         <div>
           <label className="font-semibold text-slate-700 block mb-1">
-            2. In your own words, why did the original code fail? (1–2 sentences)
+            2. Explain your thinking in 1–2 sentences: why does this loop give your answer?
           </label>
           <textarea
             rows={2}

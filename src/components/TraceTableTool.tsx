@@ -26,7 +26,7 @@ interface TraceTableToolProps {
   loopConfig: LoopProgramConfig;
   expectedPassCount: number;
   initialLearnerRows?: LearnerTraceRow[];
-  onSubmitTrace?: (rows: LearnerTraceRow[], divergence: DivergenceResult) => void;
+  onSubmitTrace?: (rows: LearnerTraceRow[], divergence: DivergenceResult, explanation: string) => void;
   readOnly?: boolean;
 }
 
@@ -72,6 +72,7 @@ export default function TraceTableTool({
 
   const [divergence, setDivergence] = useState<DivergenceResult | null>(null);
   const [hasChecked, setHasChecked] = useState<boolean>(false);
+  const [explanation, setExplanation] = useState<string>("");
 
   const activeFrame = actualFrames[currentStep] || actualFrames[0];
 
@@ -103,7 +104,7 @@ export default function TraceTableTool({
     setDivergence(res);
     setHasChecked(true);
     if (onSubmitTrace) {
-      onSubmitTrace(rows, res);
+      onSubmitTrace(rows, res, explanation);
     }
   };
 
@@ -320,42 +321,94 @@ export default function TraceTableTool({
           </span>
         </div>
 
-        <div
-          className={`flex items-center px-2 py-1 rounded transition ${
-            viewMode === "step" && activeFrame?.lineNumber === 3
-              ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
-              : "text-slate-300"
-          }`}
-        >
-          <span className="text-slate-600 w-5 select-none text-[11px]">3</span>
-          <span className="pl-4">
-            <span className="text-[#89DCEB]">{accName}</span> ={" "}
-            {loopConfig.accumulatorOperation === "overwrite" ? (
-              <span className="text-[#CDD6F4]">{lVar}</span>
-            ) : (
-              <>
+        {loopConfig.filterConditionStr ? (
+          <>
+            <div
+              className={`flex items-center px-2 py-1 rounded transition ${
+                viewMode === "step" && activeFrame?.lineNumber === 3
+                  ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                  : "text-slate-300"
+              }`}
+            >
+              <span className="text-slate-600 w-5 select-none text-[11px]">3</span>
+              <span className="pl-4">
+                <span className="text-[#CBA6F7]">if </span>
+                <span className="text-[#CDD6F4]">{loopConfig.filterConditionStr}</span>
+                <span className="text-slate-400">:</span>
+              </span>
+            </div>
+
+            <div
+              className={`flex items-center px-2 py-1 rounded transition ${
+                viewMode === "step" && activeFrame?.lineNumber === 3
+                  ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                  : "text-slate-300"
+              }`}
+            >
+              <span className="text-slate-600 w-5 select-none text-[11px]">4</span>
+              <span className="pl-8">
+                <span className="text-[#89DCEB]">{accName}</span> ={" "}
                 <span className="text-[#89DCEB]">{accName}</span> +{" "}
                 <span className="text-[#CDD6F4]">{lVar}</span>
-              </>
-            )}
-          </span>
-        </div>
+              </span>
+            </div>
 
-        <div
-          className={`flex items-center px-2 py-1 rounded transition ${
-            viewMode === "step" && activeFrame?.lineNumber === 4
-              ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
-              : "text-slate-300"
-          }`}
-        >
-          <span className="text-slate-600 w-5 select-none text-[11px]">4</span>
-          <span>
-            <span className="text-[#89B4FA]">print</span>
-            <span className="text-slate-400">(</span>
-            <span className="text-[#89DCEB]">{accName}</span>
-            <span className="text-slate-400">)</span>
-          </span>
-        </div>
+            <div
+              className={`flex items-center px-2 py-1 rounded transition ${
+                viewMode === "step" && activeFrame?.lineNumber === 4
+                  ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                  : "text-slate-300"
+              }`}
+            >
+              <span className="text-slate-600 w-5 select-none text-[11px]">5</span>
+              <span>
+                <span className="text-[#89B4FA]">print</span>
+                <span className="text-slate-400">(</span>
+                <span className="text-[#89DCEB]">{accName}</span>
+                <span className="text-slate-400">)</span>
+              </span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              className={`flex items-center px-2 py-1 rounded transition ${
+                viewMode === "step" && activeFrame?.lineNumber === 3
+                  ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                  : "text-slate-300"
+              }`}
+            >
+              <span className="text-slate-600 w-5 select-none text-[11px]">3</span>
+              <span className="pl-4">
+                <span className="text-[#89DCEB]">{accName}</span> ={" "}
+                {loopConfig.accumulatorOperation === "overwrite" ? (
+                  <span className="text-[#CDD6F4]">{lVar}</span>
+                ) : (
+                  <>
+                    <span className="text-[#89DCEB]">{accName}</span> +{" "}
+                    <span className="text-[#CDD6F4]">{lVar}</span>
+                  </>
+                )}
+              </span>
+            </div>
+
+            <div
+              className={`flex items-center px-2 py-1 rounded transition ${
+                viewMode === "step" && activeFrame?.lineNumber === 4
+                  ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                  : "text-slate-300"
+              }`}
+            >
+              <span className="text-slate-600 w-5 select-none text-[11px]">4</span>
+              <span>
+                <span className="text-[#89B4FA]">print</span>
+                <span className="text-slate-400">(</span>
+                <span className="text-[#89DCEB]">{accName}</span>
+                <span className="text-slate-400">)</span>
+              </span>
+            </div>
+          </>
+        )}
       </div>
     );
   };
@@ -596,7 +649,23 @@ export default function TraceTableTool({
                     <span>Remove Pass</span>
                   </button>
                 </div>
+              </div>
 
+              {/* Mandatory Explanation Textarea */}
+              <div className="pt-2">
+                <label className="font-semibold text-slate-700 block mb-1 text-xs">
+                  Explain your thinking in 1–2 sentences: why does this loop give your answer?
+                </label>
+                <textarea
+                  rows={2}
+                  value={explanation}
+                  onChange={(e) => setExplanation(e.target.value)}
+                  placeholder="e.g. range(1, 4) stops right before 4, and total accumulates each value 1 + 2 + 3 = 6..."
+                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   onClick={handleCheck}

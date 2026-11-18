@@ -228,18 +228,32 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
 
     // Frame: Accumulator update
     const previousAcc = accVal;
-    if (config.accumulatorOperation === "overwrite") {
-      accVal = currentVal;
-    } else if (config.accumulatorOperation === "multiply") {
-      accVal = (accVal as number) * currentVal;
-    } else {
-      accVal = (accVal as number) + currentVal;
+    let satisfiesCondition = true;
+    if (config.filterCondition) {
+      satisfiesCondition = config.filterCondition(currentVal);
     }
 
-    const opStr =
-      config.accumulatorOperation === "overwrite"
-        ? `${accName} = ${loopVar}`
-        : `${accName} = ${accName} + ${loopVar}`;
+    if (satisfiesCondition) {
+      if (config.accumulatorOperation === "overwrite") {
+        accVal = currentVal;
+      } else if (config.accumulatorOperation === "multiply") {
+        accVal = (accVal as number) * currentVal;
+      } else {
+        accVal = (accVal as number) + currentVal;
+      }
+    }
+
+    const opStr = config.filterConditionStr
+      ? `if ${config.filterConditionStr}: ${accName} = ${accName} + ${loopVar}`
+      : config.accumulatorOperation === "overwrite"
+      ? `${accName} = ${loopVar}`
+      : `${accName} = ${accName} + ${loopVar}`;
+
+    const updateNote = !satisfiesCondition
+      ? `Pass ${pass}: ${loopVar} = ${currentVal} did not satisfy condition (${config.filterConditionStr}), so ${accName} stays ${accVal}.`
+      : config.accumulatorOperation === "overwrite"
+      ? `Pass ${pass}: ${accName} is overwritten by ${currentVal} (previous sum ${previousAcc} was lost).`
+      : `Pass ${pass}: ${accName} updates from ${previousAcc} to ${accVal} (+${currentVal}).`;
 
     frames.push({
       stepIndex: stepCounter++,
@@ -250,10 +264,7 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
       loopVarValue: currentVal,
       accumulatorName: accName,
       accumulatorValue: accVal,
-      explanationNote:
-        config.accumulatorOperation === "overwrite"
-          ? `Pass ${pass}: ${accName} is overwritten by ${currentVal} (previous sum ${previousAcc} was lost).`
-          : `Pass ${pass}: ${accName} updates from ${previousAcc} to ${accVal} (+${currentVal}).`,
+      explanationNote: updateNote,
     });
   }
 

@@ -82,14 +82,15 @@ export default function SessionHeader({
 
           <button
             onClick={onTogglePause}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium transition cursor-pointer border border-slate-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition cursor-pointer border border-indigo-200"
+            title="Freeze timer and save progress"
           >
             {isPaused ? (
-              <Play className="w-3.5 h-3.5 fill-slate-700 text-slate-700" />
+              <Play className="w-3.5 h-3.5 fill-indigo-700 text-indigo-700" />
             ) : (
-              <Pause className="w-3.5 h-3.5 fill-slate-700 text-slate-700" />
+              <Pause className="w-3.5 h-3.5 fill-indigo-700 text-indigo-700" />
             )}
-            <span className="hidden sm:inline">{isPaused ? "Resume" : "Pause"}</span>
+            <span className="hidden sm:inline">{isPaused ? "Resume" : "Pause & Save"}</span>
           </button>
         </div>
       </div>
