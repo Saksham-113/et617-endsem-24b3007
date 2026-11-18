@@ -64,6 +64,7 @@ export default function HomePage() {
   // Live In-Browser Python Runner & Scratchpad State
   const [isScratchpadOpen, setIsScratchpadOpen] = useState<boolean>(false);
   const [scratchpadCode, setScratchpadCode] = useState<string>('for i in range(1, 6):\n    print("*" * i)');
+  const [isQuickDrawerOpen, setIsQuickDrawerOpen] = useState<boolean>(false);
 
   // Dynamic AI Reply & Branching State
   const [aiResponse, setAiResponse] = useState<{
@@ -680,7 +681,33 @@ export default function HomePage() {
               </div>
 
               {/* Task Workspaces by Format with key to reset inputs */}
-              <div key={taskResetKey}>
+              <div key={taskResetKey} className="space-y-4">
+                {/* Embedded Live Python Code Runner for Trace Grid & Parsons so learners can test then & there */}
+                {activeTask.format !== "bugfix_explain" && (
+                  <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="w-4 h-4 text-emerald-600" />
+                        <span className="font-bold text-xs text-slate-900">
+                          Live Python Code Runner (Test This Code Then & There)
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500">
+                        Edit code or click ▶ Run Code to see live terminal output
+                      </span>
+                    </div>
+
+                    <PythonRunner
+                      key={`inline-runner-${activeTaskId}-${taskResetKey}`}
+                      initialCode={activeTask.codeSnippet}
+                      minHeight="110px"
+                      title="In-Browser Python 3 (Pyodide)"
+                      subtitle="Test loop iterations or print statements live"
+                      embeddedMode={true}
+                    />
+                  </div>
+                )}
+
                 {activeTask.format === "trace_grid" && (
                   <TraceTableTool
                     loopConfig={activeTask.loopConfig}
@@ -1018,6 +1045,47 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Floating Persistent Python Editor Quick-Dock (Always Available Across All Modules) */}
+      <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end">
+        {isQuickDrawerOpen && (
+          <div className="mb-2 w-[92vw] sm:w-[480px] bg-white rounded-2xl border border-slate-300 shadow-2xl overflow-hidden animate-slide-up text-xs">
+            <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-emerald-400" />
+                <span className="font-bold text-xs">Live Python Terminal (Quick Test Then & There)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickDrawerOpen(false)}
+                className="text-slate-400 hover:text-white p-1 rounded cursor-pointer"
+                title="Hide Quick Terminal"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="p-3">
+              <PythonRunner
+                key={`dock-${activeTaskId}`}
+                initialCode={activeTask ? activeTask.codeSnippet : 'for i in range(1, 6):\n    print("*" * i)'}
+                minHeight="120px"
+                embeddedMode={true}
+              />
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsQuickDrawerOpen(!isQuickDrawerOpen)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-full shadow-lg border border-slate-700 transition cursor-pointer text-xs group"
+          title="Open Live Python Runner"
+        >
+          <Terminal className="w-4 h-4 text-emerald-400 group-hover:rotate-12 transition-transform" />
+          <span>{isQuickDrawerOpen ? "Hide Python Runner" : "🐍 Live Python Runner"}</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </button>
+      </div>
 
       {/* Footer with Roll No 24b3007 */}
       <Footer />
