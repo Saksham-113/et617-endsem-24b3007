@@ -145,7 +145,7 @@ export default function AboutPage() {
 
           <div className="space-y-2 text-slate-600 text-xs">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-              <strong className="text-slate-800">Model:</strong> Google Gemini 3.8 Flash (`@google/genai`) with structured JSON schema (`responseMimeType: &quot;application/json&quot;`).
+              <strong className="text-slate-800">Model:</strong> Google Gemini 2.5 Flash (`@google/genai`) with structured JSON schema (`responseMimeType: &quot;application/json&quot;`).
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
               <strong className="text-slate-800">Validation Guardrail:</strong> Output is parsed against a strict runtime Zod schema ensuring valid decision outcomes and supportive non-punitive feedback.

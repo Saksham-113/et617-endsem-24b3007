@@ -60,6 +60,23 @@ export interface TaskDefinition {
   nextSequentialTaskId?: string;
 }
 
+export interface CodeLineAnnotation {
+  lineNumber: number;
+  code: string;
+  role: string;
+  explanation: string;
+}
+
+export interface WalkthroughExample {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  snippet: string;
+  config: LoopProgramConfig;
+  expectedPasses: number;
+}
+
 export interface ModuleDefinition {
   id: "module_1" | "module_2" | "module_3";
   title: string;
@@ -67,11 +84,18 @@ export interface ModuleDefinition {
   chapterCoverage: string;
   badge: string;
   description: string;
-  microLessonTitle: string;
-  microLessonContent: string; // ~150 words
-  walkthroughSnippet: string;
-  walkthroughConfig: LoopProgramConfig;
-  walkthroughExpectedPasses: number;
+  // Part 1: Core Concept & Real-World Analogy (2 detailed paragraphs)
+  coreConceptTitle: string;
+  coreConceptParagraph1: string;
+  coreConceptParagraph2: string;
+  analogyTitle: string;
+  analogyContent: string;
+  // Part 2: Annotated Code Anatomy
+  codeAnatomyTitle: string;
+  codeAnatomyDescription: string;
+  codeAnatomyLines: CodeLineAnnotation[];
+  // Part 3: Interactive Step-by-Step Trace Walkthrough with 2 worked examples
+  walkthroughExamples: WalkthroughExample[];
   exerciseIds: string[];
 }
 
@@ -87,19 +111,76 @@ export const MODULES: ModuleDefinition[] = [
     chapterCoverage: "Chapters 2 & 3",
     badge: "Ch. 2 & 3",
     description: "Master loop iteration order, the exclusive stop boundary in range(), and step increments without off-by-one errors.",
-    microLessonTitle: "The Exclusive Stop Boundary Rule",
-    microLessonContent:
-      "In Python, a for loop automates repetitive actions by iterating through a sequence of items or numbers. When generating numeric sequences, Python provides the built-in range() function. A fundamental rule from Python Crash Course that often trips up beginners is that range(start, stop) is half-open: execution starts at start and stops right before reaching stop—the stop value is never visited! Think of stop as a red traffic stop sign: you pull up right before it, but never cross it. For instance, range(1, 4) produces exactly three numbers: 1, 2, and 3, not 4. When you provide three arguments, range(start, stop, step), the third argument controls the step increment between numbers. range(2, 8, 2) jumps by twos, producing 2, 4, and 6. Remembering that Python halts before the stop boundary eliminates off-by-one errors and lets you trace loop passes with calm certainty.",
-    walkthroughSnippet: "total = 0\nfor i in range(1, 4):\n    total = total + i\nprint(total)",
-    walkthroughConfig: {
-      initialAccumulatorName: "total",
-      initialAccumulatorValue: 0,
-      loopVar: "i",
-      rangeStart: 1,
-      rangeStop: 4,
-      rangeStep: 1,
-    },
-    walkthroughExpectedPasses: 3,
+    coreConceptTitle: "The Exclusive Stop Boundary & Numeric Intervals",
+    coreConceptParagraph1:
+      "In standard school mathematics and everyday language, when someone asks you to 'count from 1 to 5', the number 5 is naturally included. In Python, however, sequences produced by the built-in range(start, stop) function are half-open intervals [start, stop). Execution begins at start and continues as long as the counter is strictly less than stop. The moment the internal counter reaches stop, Python halts immediately. Because of this half-open interval rule, range(1, 5) produces exactly four numbers: 1, 2, 3, and 4. The stop value 5 is never visited.",
+    coreConceptParagraph2:
+      "When you supply a third argument, range(start, stop, step), Python adjusts the increment between successive passes. For example, range(2, 9, 2) starts at 2, visits 4, 6, and 8, and stops before reaching or exceeding 9. A common point of confusion for students repeating Python is whether the loop continues until it reaches the stop value; remembering that Python evaluates the boundary before entering each pass prevents anxious off-by-one errors and makes predicting loop counts intuitive.",
+    analogyTitle: "The Bus Stop / Subway Turnstile Analogy",
+    analogyContent:
+      "Think of range(start, stop) as a city bus route. You board the bus at Station 1 (start). You travel through Station 2 and Station 3. But Station 4 is marked as the Stop Boundary sign. The bus pulls up to the platform right before Station 4 and drops you off—you never drive into Station 4. Always remember: in Python, you stop right before the stop sign!",
+    codeAnatomyTitle: "Annotated Code Anatomy: The Basic for Loop",
+    codeAnatomyDescription: "Observe how Python parses initialization, boundary checking, body execution, and final output across 4 distinct lines:",
+    codeAnatomyLines: [
+      {
+        lineNumber: 1,
+        code: "total = 0",
+        role: "State Initialization",
+        explanation: "Allocates variable total in memory with initial value 0 before the loop begins so accumulated values persist.",
+      },
+      {
+        lineNumber: 2,
+        code: "for i in range(1, 4):",
+        role: "Loop Header & Sequence Generator",
+        explanation: "Generates the sequence [1, 2, 3]. On each pass, the next value is bound to i. Halts before reaching 4.",
+      },
+      {
+        lineNumber: 3,
+        code: "    total = total + i",
+        role: "Loop Body (Indented 4 Spaces)",
+        explanation: "Repeats for every pass: retrieves the current total, adds i to it, and stores the updated sum back into total.",
+      },
+      {
+        lineNumber: 4,
+        code: "print(total)",
+        role: "Post-Loop Output (Unindented)",
+        explanation: "Runs once after all iterations conclude, outputting the final sum 6 to standard output.",
+      },
+    ],
+    walkthroughExamples: [
+      {
+        id: "m1_ex_a",
+        title: "Worked Example A: range(1, 4) Stop Boundary",
+        subtitle: "3 Iteration Passes (1, 2, 3) · Halts Before 4",
+        description: "Step through frame-by-frame to see total accumulate 0 -> 1 -> 3 -> 6 across 3 passes:",
+        snippet: "total = 0\nfor i in range(1, 4):\n    total = total + i\nprint(total)",
+        config: {
+          initialAccumulatorName: "total",
+          initialAccumulatorValue: 0,
+          loopVar: "i",
+          rangeStart: 1,
+          rangeStop: 4,
+          rangeStep: 1,
+        },
+        expectedPasses: 3,
+      },
+      {
+        id: "m1_ex_b",
+        title: "Worked Example B: range(2, 8, 2) Step Increment",
+        subtitle: "3 Iteration Passes (2, 4, 6) · Step Size = 2",
+        description: "Notice how step size 2 jumps through even numbers (2, 4, 6) and stops before 8:",
+        snippet: "total = 0\nfor i in range(2, 8, 2):\n    total = total + i\nprint(total)",
+        config: {
+          initialAccumulatorName: "total",
+          initialAccumulatorValue: 0,
+          loopVar: "i",
+          rangeStart: 2,
+          rangeStop: 8,
+          rangeStep: 2,
+        },
+        expectedPasses: 3,
+      },
+    ],
     exerciseIds: [
       "mod1_ex1_trace",
       "mod1_ex2_parsons",
@@ -114,20 +195,78 @@ export const MODULES: ModuleDefinition[] = [
     chapterCoverage: "Chapter 4",
     badge: "Ch. 4",
     description: "Understand memory updates: why total = total + i acts like a piggy bank while total = i erases previous state like a whiteboard.",
-    microLessonTitle: "The Piggy Bank vs. Whiteboard Metaphor",
-    microLessonContent:
-      "In Chapter 4 of Python Crash Course, Eric Matthes highlights how variables maintain state across loop iterations. An accumulator variable is initialized before a loop (such as total = 0) and collects values during execution. The critical mental model is understanding the difference between updating and overwriting memory. Writing total = total + i is like dropping coins into a piggy bank: Python takes the existing sum in the bank and adds the new value i to it. In stark contrast, writing total = i acts like wiping a whiteboard clean: whatever was calculated previously is permanently erased and replaced by the single current number. Similarly, placing total = 0 inside the loop body wipes the bank on every single pass. To accumulate correctly, always initialize your variable outside the loop, use total = total + i inside, and display the final total only after the loop completes.",
-    walkthroughSnippet: "total = 0\nfor i in range(1, 4):\n    total = total + i\nprint(total)",
-    walkthroughConfig: {
-      initialAccumulatorName: "total",
-      initialAccumulatorValue: 0,
-      loopVar: "i",
-      rangeStart: 1,
-      rangeStop: 4,
-      rangeStep: 1,
-      customCodeSnippet: "total = 0; for i in range(1, 4): total = total + i",
-    },
-    walkthroughExpectedPasses: 3,
+    coreConceptTitle: "State Preservation vs. Destructive Memory Overwrite",
+    coreConceptParagraph1:
+      "In Chapter 4 of Python Crash Course, Eric Matthes highlights how variables maintain state across repetitive loop cycles. Unlike mathematical equations where 'x = x + 1' seems impossible, in computer programming the '=' sign represents assignment—a state transfer over time. Writing total = total + i tells Python to read the old value in the total memory box, add the current number i to it, and write the new result back into the box. Each pass builds upon the cumulative history of all previous passes.",
+    coreConceptParagraph2:
+      "The most common accumulator misconception (M2) occurs when learners write total = i instead of total = total + i. In computer memory, assignment is destructive: writing total = i completely replaces whatever was stored previously. If total held 15 and i is 4, assigning total = i destroys the 15 and stores only 4. Similarly, placing total = 0 inside the indented loop body causes the sum to be wiped back to zero on every iteration pass, discarding all progress.",
+    analogyTitle: "The Piggy Bank vs. The Whiteboard",
+    analogyContent:
+      "Writing total = total + i is like dropping coins into a Piggy Bank: you drop a new coin in, but everything you saved earlier stays safely inside. In contrast, writing total = i is like writing on a classroom Whiteboard: before writing the new number, you take an eraser, wipe off everything that was written before, and write only the single current number!",
+    codeAnatomyTitle: "Annotated Code Anatomy: The Safe Accumulator",
+    codeAnatomyDescription: "Observe the placement of initialization, accumulation, and final reporting:",
+    codeAnatomyLines: [
+      {
+        lineNumber: 1,
+        code: "total = 0",
+        role: "Outer Piggy Bank Initialization",
+        explanation: "Placed outside the loop so the bank is opened once. If placed inside, the sum resets to 0 on every pass.",
+      },
+      {
+        lineNumber: 2,
+        code: "for num in range(1, 5):",
+        role: "Loop Header",
+        explanation: "Controls iteration over values 1, 2, 3, 4 (stopping before 5).",
+      },
+      {
+        lineNumber: 3,
+        code: "    total = total + num",
+        role: "Safe Cumulative Update",
+        explanation: "Adds num to previous total without overwriting memory: 0 -> 1 -> 3 -> 6 -> 10.",
+      },
+      {
+        lineNumber: 4,
+        code: "print(total)",
+        role: "Final Output (Post-Loop)",
+        explanation: "Outputs final grand total 10 once all 4 iterations are complete.",
+      },
+    ],
+    walkthroughExamples: [
+      {
+        id: "m2_ex_a",
+        title: "Worked Example A: Cumulative Sum (Piggy Bank)",
+        subtitle: "Safe Update: total = total + i",
+        description: "Scrub through to watch total accumulate: 0 -> 1 -> 3 -> 6 across 3 iterations:",
+        snippet: "total = 0\nfor i in range(1, 4):\n    total = total + i\nprint(total)",
+        config: {
+          initialAccumulatorName: "total",
+          initialAccumulatorValue: 0,
+          loopVar: "i",
+          rangeStart: 1,
+          rangeStop: 4,
+          rangeStep: 1,
+          customCodeSnippet: "total = 0; for i in range(1, 4): total = total + i",
+        },
+        expectedPasses: 3,
+      },
+      {
+        id: "m2_ex_b",
+        title: "Worked Example B: Destructive Overwrite (Whiteboard Bug)",
+        subtitle: "Buggy Update: total = i (Wipes Past Sums)",
+        description: "Notice how total = i destroys previous values on each step, outputting only 3 instead of 6:",
+        snippet: "total = 0\nfor i in range(1, 4):\n    total = i\nprint(total)",
+        config: {
+          initialAccumulatorName: "total",
+          initialAccumulatorValue: 0,
+          loopVar: "i",
+          rangeStart: 1,
+          rangeStop: 4,
+          rangeStep: 1,
+          accumulatorOperation: "overwrite",
+        },
+        expectedPasses: 3,
+      },
+    ],
     exerciseIds: [
       "mod2_ex1_trace",
       "mod2_ex2_parsons",
@@ -142,21 +281,86 @@ export const MODULES: ModuleDefinition[] = [
     chapterCoverage: "Chapters 5 & 6",
     badge: "Ch. 5 & 6",
     description: "Combine loops with if statements to filter data, control indentation scope, and debug common logical missteps.",
-    microLessonTitle: "Conditional Indentation & Selective Aggregation",
-    microLessonContent:
-      "Chapters 5 and 6 combine loops with conditional if statements to filter data dynamically. Inside a loop body, an if statement tests each element: only when the condition evaluates to True does the indented body execute. For example, using the modulo operator if num % 2 == 0: lets Python isolate and sum only even numbers while completely skipping odd numbers. The accumulator variable only updates during passes where the condition is satisfied. When debugging loop filters, pay strict attention to Python indentation: statements indented under the if execute conditionally, statements indented only under for execute on every single pass, and unindented statements run once after the loop finishes. Mastering this nested scope lets you filter, count, and selectively aggregate data without unexpected logic bugs. Every error is simply an observation waiting to be traced step-by-step.",
-    walkthroughSnippet: "total = 0\nfor n in range(1, 5):\n    if n % 2 == 0:\n        total = total + n\nprint(total)",
-    walkthroughConfig: {
-      initialAccumulatorName: "total",
-      initialAccumulatorValue: 0,
-      loopVar: "n",
-      rangeStart: 1,
-      rangeStop: 5,
-      rangeStep: 1,
-      filterCondition: (val: number) => val % 2 === 0,
-      filterConditionStr: "n % 2 == 0",
-    },
-    walkthroughExpectedPasses: 4,
+    coreConceptTitle: "Conditional Scope & Selective Data Aggregation",
+    coreConceptParagraph1:
+      "Chapters 5 and 6 combine repetitive loop structures with logical branching using 'if' statements. Inside a loop, an if statement acts as an intelligent gatekeeper: on each pass, Python evaluates the boolean condition. Only when that condition evaluates to True does the nested block execute; if False, Python skips the nested lines and proceeds directly to the next loop pass.",
+    coreConceptParagraph2:
+      "Understanding Python indentation scope is essential when debugging conditional loops. Statements indented under the if line execute conditionally; statements indented only under the for loop header execute on every single pass regardless of condition; and statements unindented execute only after the entire loop terminates. Debugging common bugs involves checking comparison operators (< vs >) and verifying that accumulators are nested at the proper indentation depth.",
+    analogyTitle: "The Airport Baggage Security Scanner",
+    analogyContent:
+      "Imagine an airport security conveyor belt carrying luggage (the loop). The security sensor (the if condition) inspects each bag. If a bag is flagged (True), the robotic arm diverts it for screening (the accumulator adds it). If the bag is clear (False), it continues down the belt without being touched. Only items meeting the condition trigger an action!",
+    codeAnatomyTitle: "Annotated Code Anatomy: Conditional Loop Filter",
+    codeAnatomyDescription: "Follow the 3 indentation levels from initialization to conditional execution:",
+    codeAnatomyLines: [
+      {
+        lineNumber: 1,
+        code: "even_sum = 0",
+        role: "Outer Filtered Accumulator",
+        explanation: "Allocates variable even_sum before iteration begins.",
+      },
+      {
+        lineNumber: 2,
+        code: "for n in range(1, 5):",
+        role: "Loop Header",
+        explanation: "Visits candidate values 1, 2, 3, 4 sequentially.",
+      },
+      {
+        lineNumber: 3,
+        code: "    if n % 2 == 0:",
+        role: "Conditional Guard (Indented 4 Spaces)",
+        explanation: "Tests whether n is even using modulo. True for 2 and 4; False for 1 and 3.",
+      },
+      {
+        lineNumber: 4,
+        code: "        even_sum = even_sum + n",
+        role: "Conditional Body (Indented 8 Spaces)",
+        explanation: "Executes ONLY when if condition is True. Adds 2, then 4, yielding 6.",
+      },
+      {
+        lineNumber: 5,
+        code: "print(even_sum)",
+        role: "Final Output (Unindented)",
+        explanation: "Outputs final filtered sum 6 once all candidates are processed.",
+      },
+    ],
+    walkthroughExamples: [
+      {
+        id: "m3_ex_a",
+        title: "Worked Example A: Even-Number Filter (n % 2 == 0)",
+        subtitle: "Adds only 2 and 4 · Skips 1 and 3",
+        description: "Observe how total stays 0 on odd passes, and only updates on even passes:",
+        snippet: "total = 0\nfor n in range(1, 5):\n    if n % 2 == 0:\n        total = total + n\nprint(total)",
+        config: {
+          initialAccumulatorName: "total",
+          initialAccumulatorValue: 0,
+          loopVar: "n",
+          rangeStart: 1,
+          rangeStop: 5,
+          rangeStep: 1,
+          filterCondition: (val: number) => val % 2 === 0,
+          filterConditionStr: "n % 2 == 0",
+        },
+        expectedPasses: 4,
+      },
+      {
+        id: "m3_ex_b",
+        title: "Worked Example B: Threshold Filter (x > 2)",
+        subtitle: "Adds only 3 and 4 · Skips 1 and 2",
+        description: "Watch how x=1 and x=2 are ignored, and only x=3 and x=4 accumulate into total (reaching 7):",
+        snippet: "total = 0\nfor x in range(1, 5):\n    if x > 2:\n        total = total + x\nprint(total)",
+        config: {
+          initialAccumulatorName: "total",
+          initialAccumulatorValue: 0,
+          loopVar: "x",
+          rangeStart: 1,
+          rangeStop: 5,
+          rangeStep: 1,
+          filterCondition: (val: number) => val > 2,
+          filterConditionStr: "x > 2",
+        },
+        expectedPasses: 4,
+      },
+    ],
     exerciseIds: [
       "mod3_ex1_trace",
       "mod3_ex2_parsons",

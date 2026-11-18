@@ -65,7 +65,7 @@ When submitted, both `learnerAnswer` (the trace rows, code order, or selected bu
 
 ## 4. Real Live AI Replies & Dynamic Branching (`/api/tutor`)
 
-The tutor calls Google's **Gemini 3.8 Flash** (`@google/genai`, `responseMimeType: "application/json"`) to evaluate student submissions against a strict schema:
+The tutor calls Google's **Gemini 2.5 Flash** (`@google/genai`, `responseMimeType: "application/json"`) to evaluate student submissions against a strict schema:
 ```json
 {
   "isCorrect": boolean,
@@ -79,16 +79,14 @@ The tutor calls Google's **Gemini 3.8 Flash** (`@google/genai`, `responseMimeTyp
 ```
 
 ### UI Presentation & Branching Rules:
-* **If `isCorrect && explanationScore >= 0.75`:**
-  * Displays a **sage-green AI reply card** (`#eef7ee` with emerald border) with praise evaluating their specific explanation.
-  * Shows an **"Advance to Harder Challenge →"** button that immediately loads `nextTask` at higher difficulty.
-  * **Never displays "Inspect Trace Table" or "Try Parallel Practice" when the answer is correct.**
-* **If wrong or misconception detected (`!isCorrect || explanationScore < 0.75`):**
-  * Displays an **amber AI reply card** (`#fff9eb` with amber border) with supportive diagnostic feedback.
-  * Displays a clear **divergence trace** highlighting where and why the loop prediction diverged.
-  * Shows a working **"Try Parallel Practice →"** button that immediately loads the isomorphic parallel challenge and resets all inputs.
-  * Shows a working **"Next Exercise →"** button so the anxious learner is never trapped or stalled.
-* **Deterministic Fallback Guarantee:** If `GEMINI_API_KEY` is absent or the API times out (>5s), LoopStep smoothly falls back to its deterministic pedagogical engine with zero user disruption.
+* **When Correct (`isCorrect && explanationScore >= 0.75`):**
+  * Displays a bold **Green** feedback card (`bg-emerald-50 border-2 border-emerald-500`) with a high-contrast pill badge **`✓ CORRECT — WELL DONE!`** (`bg-emerald-600 text-white font-bold`).
+  * Features the AI's praise of their explanation, followed by both **`Next Exercise →`** and **`Advance to Harder Challenge →`** buttons.
+  * Never displays "Inspect Trace Table" or "Try Parallel Practice" when the answer is correct.
+* **When Wrong or Misconception Detected (`!isCorrect || explanationScore < 0.75`):**
+  * Displays a bold **Red** feedback card (`bg-red-50 border-2 border-red-500`) with a high-contrast pill badge **`✕ INCORRECT — LET'S FIX THIS`** (`bg-red-600 text-white font-bold`).
+  * Displays the AI's diagnosis of what went wrong, the interactive divergence trace comparison, and both **`Try Parallel Practice →`** and **`Next Exercise →`** buttons so learners are never trapped.
+* **Dynamic Fallback Guarantee:** Even when offline or without an API key, the fallback dynamically analyzes learner inputs and quotes their typed explanation so it never returns the exact same canned text twice.
 
 ---
 

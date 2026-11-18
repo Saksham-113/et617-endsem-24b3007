@@ -18,6 +18,8 @@ import {
   Cpu,
   Layers,
   ArrowLeft,
+  Code,
+  HelpCircle,
 } from "lucide-react";
 import SessionHeader from "@/components/SessionHeader";
 import PauseOverlay from "@/components/PauseOverlay";
@@ -46,8 +48,9 @@ export default function HomePage() {
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  // Active Task State
+  // Active Task & Walkthrough State
   const [activeTaskId, setActiveTaskId] = useState<string>("mod1_ex1_trace");
+  const [selectedWalkthroughIdx, setSelectedWalkthroughIdx] = useState<number>(0);
   const [attempts, setAttempts] = useState<number>(0);
   const [hintsUsed, setHintsUsed] = useState<number>(0);
   const [showHint, setShowHint] = useState<boolean>(false);
@@ -104,6 +107,7 @@ export default function HomePage() {
     const mod = getModuleById(moduleId);
     setActiveModuleId(moduleId);
     setActiveTaskId(mod.exerciseIds[0]);
+    setSelectedWalkthroughIdx(0);
     setElapsedSeconds(0); // Fresh 10:00 timer
     setIsPaused(false);
     setIsFinished(false);
@@ -115,10 +119,19 @@ export default function HomePage() {
     setTaskResetKey((k) => k + 1);
   };
 
+  // Complete reset back to clean Module Selection screen
   const handleReturnToModuleSelector = () => {
     setActiveModuleId(null);
+    setIsFinished(false);
     setIsPaused(false);
+    setElapsedSeconds(0);
+    setSelectedWalkthroughIdx(0);
     setAiResponse(null);
+    setDivergenceInfo(null);
+    setAttempts(0);
+    setHintsUsed(0);
+    setShowHint(false);
+    setTaskResetKey((k) => k + 1);
   };
 
   // C4 In-Session Pause & Save
@@ -145,6 +158,7 @@ export default function HomePage() {
 
   const activeModule = activeModuleId ? getModuleById(activeModuleId) : null;
   const activeTask = getTaskById(activeTaskId);
+  const activeWalkthrough = activeModule ? activeModule.walkthroughExamples[selectedWalkthroughIdx] || activeModule.walkthroughExamples[0] : null;
 
   // Submit learner's answer and explanation to POST /api/tutor
   const processSubmission = async (
@@ -162,6 +176,10 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           taskId: activeTaskId,
+          questionTitle: activeTask.title,
+          questionPrompt: activeTask.prompt,
+          codeSnippet: activeTask.codeSnippet,
+          modelAnswer: activeTask.modelAnswer,
           learnerAnswer,
           learnerExplanation,
           attemptCount: attempts + 1,
@@ -324,7 +342,7 @@ export default function HomePage() {
 
             {/* 3 Book-Chapter Module Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {MODULES.map((mod, idx) => (
+              {MODULES.map((mod) => (
                 <div
                   key={mod.id}
                   className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between"
@@ -347,10 +365,11 @@ export default function HomePage() {
                     </div>
 
                     <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
-                      <div className="font-semibold text-slate-700">What&apos;s inside:</div>
+                      <div className="font-semibold text-slate-700">3-Part Structure:</div>
                       <ul className="list-disc pl-4 space-y-0.5">
-                        <li>150-word micro-lesson</li>
-                        <li>Interactive step walkthrough</li>
+                        <li>Core concept & real-world analogy</li>
+                        <li>Annotated 4-line code anatomy</li>
+                        <li>2 worked interactive walkthroughs</li>
                         <li>4 adaptive practice challenges</li>
                       </ul>
                     </div>
@@ -375,7 +394,7 @@ export default function HomePage() {
               <div className="flex items-center gap-2.5">
                 <Cpu className="w-4 h-4 text-indigo-600 shrink-0" />
                 <span>
-                  <strong>AI Coaching Powered by Gemini 3.8 Flash:</strong> Live semantic diagnosis of your explanations with automatic fallback guarantees.
+                  <strong>AI Coaching Powered by Gemini 2.5 Flash:</strong> Live semantic diagnosis of your explanations with automatic fallback guarantees.
                 </span>
               </div>
               <Link
@@ -392,7 +411,7 @@ export default function HomePage() {
         {/* VIEW B: ACTIVE MODULE & EXERCISES                                   */}
         {/* =================================================================== */}
         {activeModuleId && activeModule && !isFinished && (
-          <div className="space-y-5 animate-fade-in text-xs">
+          <div className="space-y-6 animate-fade-in text-xs">
             {/* Top Navigation & Module Header */}
             <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
@@ -421,46 +440,131 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* PART 1: 150-WORD MICRO-LESSON */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-2">
-              <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                <BookOpen className="w-4 h-4 text-indigo-600" />
-                <h2 className="font-bold text-slate-900 text-xs">{activeModule.microLessonTitle}</h2>
-                <span className="text-[10px] text-slate-400 font-medium ml-auto">Micro-Lesson (~150 words)</span>
-              </div>
-              <p className="text-slate-700 text-xs leading-relaxed font-normal">
-                {activeModule.microLessonContent}
-              </p>
-            </div>
-
-            {/* PART 2: INTERACTIVE STEPPER WALKTHROUGH */}
-            <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <Play className="w-4 h-4 text-indigo-600 fill-indigo-600" />
-                  <h2 className="font-bold text-slate-900 text-xs">Interactive Step Walkthrough</h2>
+            {/* ============================================================= */}
+            {/* 3-PART STRUCTURED LESSON BLOCK                                */}
+            {/* ============================================================= */}
+            <div className="space-y-4">
+              {/* Part 1: Core Concept & Real-World Analogy */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                  <h2 className="font-bold text-slate-900 text-xs">Part 1: {activeModule.coreConceptTitle}</h2>
+                  <span className="text-[10px] text-slate-400 font-medium ml-auto">Core Concept</span>
                 </div>
-                <span className="text-[11px] text-slate-500">Scrub step-by-step before practicing</span>
+                <div className="space-y-2.5 text-slate-700 text-xs leading-relaxed">
+                  <p>{activeModule.coreConceptParagraph1}</p>
+                  <p>{activeModule.coreConceptParagraph2}</p>
+                </div>
+
+                {/* Real-World Analogy Card */}
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl flex items-start gap-3 mt-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0 text-sm shadow-xs font-bold">
+                    💡
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-indigo-950 text-xs">{activeModule.analogyTitle}</h3>
+                    <p className="text-slate-700 text-xs mt-0.5 leading-relaxed">
+                      {activeModule.analogyContent}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <TraceTableTool
-                loopConfig={activeModule.walkthroughConfig}
-                expectedPassCount={activeModule.walkthroughExpectedPasses}
-                readOnly={true}
-              />
+              {/* Part 2: Annotated Code Anatomy */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Code className="w-4 h-4 text-indigo-600" />
+                  <h2 className="font-bold text-slate-900 text-xs">Part 2: {activeModule.codeAnatomyTitle}</h2>
+                  <span className="text-[10px] text-slate-400 font-medium ml-auto">Code Anatomy</span>
+                </div>
+                <p className="text-slate-600 text-xs leading-relaxed">
+                  {activeModule.codeAnatomyDescription}
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  {activeModule.codeAnatomyLines.map((line) => (
+                    <div
+                      key={line.lineNumber}
+                      className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5"
+                    >
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center font-mono font-bold text-[11px] text-slate-700">
+                          {line.lineNumber}
+                        </span>
+                        <code className="font-mono text-xs font-bold text-indigo-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          {line.code}
+                        </code>
+                      </div>
+                      <div className="flex-1 text-right sm:text-left">
+                        <span className="font-semibold text-slate-800 text-[11px] block sm:inline mr-2">
+                          [{line.role}]:
+                        </span>
+                        <span className="text-slate-600 text-xs">{line.explanation}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Part 3: Interactive Step-by-Step Trace Walkthrough with 2 Worked Examples */}
+              <div className="bg-white rounded-2xl border border-slate-200/90 p-5 sm:p-6 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Play className="w-4 h-4 text-indigo-600 fill-indigo-600" />
+                    <h2 className="font-bold text-slate-900 text-xs">Part 3: Interactive Step-by-Step Walkthrough</h2>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium">Scrub line-by-line through 2 worked examples</span>
+                </div>
+
+                {/* Example A / B Switcher Tabs */}
+                <div className="flex items-center gap-2 pt-1">
+                  {activeModule.walkthroughExamples.map((ex, idx) => (
+                    <button
+                      key={ex.id}
+                      type="button"
+                      onClick={() => setSelectedWalkthroughIdx(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                        selectedWalkthroughIdx === idx
+                          ? "bg-indigo-600 text-white shadow-2xs"
+                          : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      <span>{ex.title.split(":")[0]}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {activeWalkthrough && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800">{activeWalkthrough.title}</span>
+                      <span className="text-indigo-600 font-mono text-[11px] font-semibold">{activeWalkthrough.subtitle}</span>
+                    </div>
+                    <p className="text-slate-600 text-xs leading-relaxed">{activeWalkthrough.description}</p>
+
+                    <TraceTableTool
+                      key={activeWalkthrough.id}
+                      loopConfig={activeWalkthrough.config}
+                      expectedPassCount={activeWalkthrough.expectedPasses}
+                      readOnly={true}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* PART 3: 4 ADAPTIVE EXERCISES */}
+            {/* ============================================================= */}
+            {/* PART 4: 4 ADAPTIVE EXERCISES                                  */}
+            {/* ============================================================= */}
             <div className="space-y-4 pt-2">
               {/* Exercise Selector Bar */}
               <div className="bg-white rounded-xl border border-slate-200/90 p-2.5 shadow-xs flex items-center justify-between gap-2 overflow-x-auto">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <ListOrdered className="w-3.5 h-3.5 text-indigo-600" />
-                  <span className="font-bold text-[11px] text-slate-800">4 Module Exercises:</span>
+                  <span className="font-bold text-[11px] text-slate-800">4 Module Practice Exercises:</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {activeModule.exerciseIds.map((exId, idx) => {
-                    const taskDef = getTaskById(exId);
                     const isActive = activeTaskId === exId;
                     return (
                       <button
@@ -559,101 +663,117 @@ export default function HomePage() {
                 <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl flex items-center justify-center gap-3 text-indigo-900 animate-pulse">
                   <Sparkles className="w-5 h-5 text-indigo-600 animate-spin" />
                   <span className="font-semibold text-xs">
-                    LoopStep AI (Gemini 3.8 Flash) is evaluating your answer and explanation...
+                    LoopStep AI (Gemini 2.5 Flash) is evaluating your answer and explanation...
                   </span>
                 </div>
               )}
 
               {/* ============================================================= */}
-              {/* AI REPLY & DYNAMIC BRANCHING CARDS                            */}
+              {/* CLEAR RIGHT VS WRONG VISUALS (BOLD GREEN & RED CARDS)         */}
               {/* ============================================================= */}
               {aiResponse && !isApiLoading && (
                 <>
-                  {/* Case 1: isCorrect && explanationScore >= 0.75 -> SAGE-GREEN CARD */}
+                  {/* Case 1: WHEN CORRECT -> BOLD GREEN CARD */}
                   {aiResponse.isCorrect && aiResponse.explanationScore >= 0.75 ? (
-                    <div className="bg-[#eef7ee] border-2 border-[#82c685] rounded-2xl p-5 shadow-sm space-y-3 animate-fade-in text-slate-900">
-                      <div className="flex items-center justify-between pb-2 border-b border-[#c2e4c4]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                            <CheckCircle2 className="w-4 h-4" />
+                    <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-5 shadow-sm space-y-4 animate-fade-in text-slate-900">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-emerald-200">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                            <CheckCircle2 className="w-5 h-5" />
                           </div>
                           <div>
-                            <h3 className="font-bold text-sm text-emerald-950">
-                              Brilliant Thinking! Explanation Verified
-                            </h3>
-                            <span className="text-[10px] text-emerald-800 font-semibold">
-                              {aiResponse.fallbackUsed ? "Deterministic Evaluation" : "Live Gemini 3.8 Flash Evaluation"}
+                            <span className="inline-block px-3 py-1 rounded-full bg-emerald-600 text-white font-bold text-xs uppercase tracking-wide shadow-xs">
+                              ✓ CORRECT — WELL DONE!
                             </span>
+                            <div className="text-[11px] text-emerald-800 font-semibold mt-1">
+                              {aiResponse.fallbackUsed ? "Evaluated with Pedagogical Diagnosis" : "Live Gemini 2.5 Flash Evaluation"}
+                            </div>
                           </div>
                         </div>
 
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono font-bold text-[11px]">
-                          Explanation: {(aiResponse.explanationScore * 100).toFixed(0)}%
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-mono font-bold text-xs">
+                          Explanation Score: {(aiResponse.explanationScore * 100).toFixed(0)}%
                         </span>
                       </div>
 
-                      <p className="text-xs leading-relaxed text-emerald-950 font-medium">
-                        {aiResponse.aiReply}
-                      </p>
+                      <div className="space-y-1.5">
+                        <div className="font-bold text-xs text-emerald-950 uppercase tracking-wider">Tutor Feedback & Praise:</div>
+                        <p className="text-xs leading-relaxed text-emerald-950 font-medium">
+                          {aiResponse.aiReply}
+                        </p>
+                      </div>
 
-                      <div className="pt-2 flex justify-end">
+                      <div className="pt-2 flex flex-wrap items-center justify-end gap-2.5">
+                        <button
+                          type="button"
+                          onClick={handleNextSequentialExercise}
+                          className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-semibold rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5"
+                        >
+                          <span>Next Exercise →</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleAdvanceToHarder(aiResponse.nextTask)}
-                          className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer"
                         >
                           <span>Advance to Harder Challenge →</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
+                          <ArrowRight className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   ) : (
-                    /* Case 2: Wrong or Misconception Detected -> AMBER CARD */
-                    <div className="bg-[#fff9eb] border-2 border-[#eec56c] rounded-2xl p-5 shadow-sm space-y-3 animate-fade-in text-slate-900">
-                      <div className="flex items-center justify-between pb-2 border-b border-[#f3dfa7]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-xs">
-                            <Lightbulb className="w-4 h-4" />
+                    /* Case 2: WHEN WRONG -> BOLD RED CARD */
+                    <div className="bg-red-50 border-2 border-red-500 rounded-2xl p-5 shadow-sm space-y-4 animate-fade-in text-slate-900">
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-red-200">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                            <AlertCircle className="w-5 h-5" />
                           </div>
                           <div>
-                            <h3 className="font-bold text-sm text-amber-950">
-                              Let&apos;s Look at the Logic Together
-                            </h3>
-                            <span className="text-[10px] text-amber-800 font-semibold">
-                              {aiResponse.fallbackUsed ? "Diagnostic Engine" : "Live Gemini 3.8 Flash Diagnosis"}
+                            <span className="inline-block px-3 py-1 rounded-full bg-red-600 text-white font-bold text-xs uppercase tracking-wide shadow-xs">
+                              ✕ INCORRECT — LET&apos;S FIX THIS
                             </span>
+                            <div className="text-[11px] text-red-800 font-semibold mt-1">
+                              {aiResponse.diagnosedMisconception === "M1"
+                                ? "Misconception M1: Inclusive Stop-Bound Fallacy"
+                                : aiResponse.diagnosedMisconception === "M2"
+                                ? "Misconception M2: Accumulator Overwrite Confusion"
+                                : "Trace Divergence Detected"}
+                            </div>
                           </div>
                         </div>
 
-                        <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-mono font-bold text-[11px]">
-                          {aiResponse.diagnosedMisconception === "M1"
-                            ? "M1: Stop Bound Fallacy"
-                            : aiResponse.diagnosedMisconception === "M2"
-                            ? "M2: Overwrite Confusion"
-                            : "Trace Divergence"}
+                        <span className="px-2.5 py-1 rounded-full bg-red-100 text-red-900 border border-red-300 font-mono font-bold text-xs">
+                          Needs Review
                         </span>
                       </div>
 
-                      <p className="text-xs leading-relaxed text-amber-950 font-medium">
-                        {aiResponse.aiReply}
-                      </p>
+                      <div className="space-y-1.5">
+                        <div className="font-bold text-xs text-red-950 uppercase tracking-wider">Tutor Diagnosis & Guidance:</div>
+                        <p className="text-xs leading-relaxed text-red-950 font-medium">
+                          {aiResponse.aiReply}
+                        </p>
+                      </div>
 
-                      {/* Divergence trace alert if present */}
+                      {/* Interactive divergence trace comparison if present */}
                       {divergenceInfo && divergenceInfo.hasDiverged && (
-                        <div className="p-3 bg-amber-100/70 border border-amber-300 rounded-xl font-mono text-xs text-amber-950 space-y-1">
-                          <div className="font-bold">Divergence Detected on Pass {divergenceInfo.divergencePass}:</div>
+                        <div className="p-3 bg-red-100/80 border border-red-300 rounded-xl font-mono text-xs text-red-950 space-y-1">
+                          <div className="font-bold flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-red-600"></span>
+                            <span>Divergence Detected on Pass {divergenceInfo.divergencePass}:</span>
+                          </div>
                           <div>{divergenceInfo.explanationMessage}</div>
                         </div>
                       )}
 
                       {/* Stop Sign Metaphor for M1 */}
                       {aiResponse.diagnosedMisconception === "M1" && (
-                        <div className="p-3 bg-amber-100/60 rounded-xl border border-amber-300 flex items-start gap-2.5 text-xs text-amber-950">
+                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-300 flex items-start gap-2.5 text-xs text-amber-950">
                           <div className="w-6 h-6 rounded-full bg-red-500 text-white font-bold flex items-center justify-center shrink-0 text-[9px]">
                             STOP
                           </div>
                           <div>
-                            <span className="font-bold">The Stop Sign Metaphor:</span> range(start, stop) stops right BEFORE reaching stop! It never visits the stop number itself.
+                            <span className="font-bold">The Stop Sign Metaphor:</span> In Python, range(start, stop) stops right BEFORE reaching stop! It never visits the stop number itself.
                           </div>
                         </div>
                       )}
@@ -668,7 +788,7 @@ export default function HomePage() {
                         </div>
                       )}
 
-                      {/* Working Branching Buttons: Parallel Practice OR Next Exercise */}
+                      {/* Working Action Buttons: Parallel Practice AND Next Exercise */}
                       <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5">
                         <button
                           type="button"
@@ -681,7 +801,7 @@ export default function HomePage() {
                         <button
                           type="button"
                           onClick={() => handleTryParallelPractice(aiResponse.nextTask)}
-                          className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer ml-auto"
+                          className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition shadow-xs flex items-center gap-1.5 cursor-pointer ml-auto"
                         >
                           <span>Try Parallel Practice →</span>
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -700,7 +820,7 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setIsFinished(true)}
-                  className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                  className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer font-medium"
                 >
                   Finish 10-Minute Session &rarr;
                 </button>
@@ -745,7 +865,7 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={handleReturnToModuleSelector}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Choose Another Module</span>

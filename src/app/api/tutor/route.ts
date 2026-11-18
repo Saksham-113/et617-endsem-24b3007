@@ -92,9 +92,9 @@ Respond ONLY with valid JSON conforming to this schema:
 }
 `;
 
-      // Call Gemini 3.8 Flash with structured JSON and 5s timeout
+      // Call Gemini 2.5 Flash with structured JSON and 5s timeout
       const aiPromise = ai.models.generateContent({
-        model: "gemini-3.8-flash",
+        model: "gemini-2.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -127,7 +127,7 @@ Respond ONLY with valid JSON conforming to this schema:
         fallbackUsed: false,
       });
     } catch (aiErr: any) {
-      console.warn("Gemini 3.8 Flash call failed or timed out; activating deterministic fallback:", aiErr?.message);
+      console.warn("Gemini 2.5 Flash call failed or timed out; activating deterministic fallback:", aiErr?.message);
       return NextResponse.json(
         handleDeterministicFallback(
           task,
@@ -181,17 +181,42 @@ function handleDeterministicFallback(
     : task.nextAltTaskId || task.id;
   const nextTask = getTaskById(targetTaskId);
 
+  // Extract learner's actual words for personalized feedback
+  const trimmedExpl = learnerExplanation.trim();
+  const explSnippet = trimmedExpl
+    ? `"${trimmedExpl.length > 60 ? trimmedExpl.slice(0, 57) + '...' : trimmedExpl}"`
+    : null;
+
   let aiReply = "";
   if (isAdvance) {
-    aiReply = task.feedbackCorrect;
+    if (explSnippet) {
+      aiReply = `Spot on reasoning, Aarav! You noted: ${explSnippet}. That accurately captures why the loop executes as expected. In ${task.title}, your predicted output cleanly matches the model answer (${task.modelAnswer}). Excellent work!`;
+    } else {
+      aiReply = `Brilliant work, Aarav! Your prediction matches the model answer (${task.modelAnswer}). You accurately identified how the variable state updates on each pass.`;
+    }
   } else if (preliminaryMisconception === "M1") {
-    aiReply = task.feedbackM1;
+    if (explSnippet) {
+      aiReply = `Let's take a closer look together, Aarav. In your explanation, you wrote: ${explSnippet}. Notice that Python's range(start, stop) stops right BEFORE reaching the stop value. On the final iteration, Python never touches the stop number itself!`;
+    } else {
+      aiReply = `Notice the stop boundary in ${task.title}: range() is half-open and halts right before the stop number. Check the final pass where your prediction included the boundary!`;
+    }
   } else if (preliminaryMisconception === "M2") {
-    aiReply = task.feedbackM2;
+    if (explSnippet) {
+      aiReply = `Great effort, Aarav! You mentioned: ${explSnippet}. Remember the Piggy Bank vs. Whiteboard rule: writing total = total + i adds coins into the bank without wiping past memory, whereas total = i replaces the entire sum with the current digit.`;
+    } else {
+      aiReply = `Notice the accumulator update in ${task.title}: total = total + i preserves previous iterations, while total = i erases them like wiping a whiteboard clean!`;
+    }
   } else if (!preliminaryIsCorrect) {
-    aiReply = "Let's review the step trace together. Notice where the values diverged from your prediction!";
+    let answerSummary = "";
+    if (Array.isArray(learnerAnswer)) {
+      const lastRow = learnerAnswer[learnerAnswer.length - 1];
+      if (lastRow) {
+        answerSummary = ` On your last pass (Pass ${lastRow.passNumber}), you had accumulator = ${lastRow.accumulatorValue || '?'}.`;
+      }
+    }
+    aiReply = `Let's trace this step-by-step together, Aarav.${answerSummary} Comparing your trace with the model answer (${task.modelAnswer}), the values diverged. Take a breath—every error gives us a clue!`;
   } else {
-    aiReply = "Your answer was correct! Let's strengthen your explanation by noting how the loop boundary and accumulator operate.";
+    aiReply = `Your answer was correct, Aarav! However, to solidify your confidence, let's strengthen your explanation by describing how the loop counter or accumulator changes from pass to pass.`;
   }
 
   return {
