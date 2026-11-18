@@ -42,14 +42,14 @@ Curriculum is structured directly from *Python Crash Course* into 3 self-contain
      - Ex 4: Challenge Trace Grid (multiplicative accumulator `product = product * n`).
      - Parallel practice tasks provided for isomorphic remediation.
 
-3. **Module 3 (Ch. 5 & 6): Conditional Filtering & Loop Debugging**
-   * *150-Word Micro-Lesson:* Explains how conditional `if` statements inside loops selectively filter data, how indentation scope controls execution, and how to debug inverted comparison operators.
-   * *Interactive Step Walkthrough:* Step frame-by-frame through `if n % 2 == 0: total = total + n`.
+3. **Module 3 (Ch. 4 & 5): Pattern Printing with Loops (`*` Triangles & Rows)**
+   * *150-Word Micro-Lesson:* Unpacks row-by-row pattern building using Python string repetition (`"*" * i`) and loop boundaries. Explains how multiplying characters by the loop counter creates visual triangles.
+   * *Interactive Step Walkthrough:* Step frame-by-frame through `for i in range(1, 6): print("*" * i)` (generating rows `*` to `*****`), plus a Pitfall Spotlight demonstrating how `range(1, 5)` cuts off the 5th row early due to the `M1` stop-bound fallacy.
    * *4 Exercises:*
-     - Ex 1: Trace Grid (conditional threshold filter `if x > 2:`).
-     - Ex 2: Button Parsons Block Assembly (conditional even-number summer).
-     - Ex 3: Bug-Fix & Explain (repairing inverted filter `if n < 3:` to `if n > 3:`).
-     - Ex 4: Challenge Trace Grid (counting even matches with `count = count + 1`).
+     - Ex 1: Trace Grid (Row-by-Row Output Trace for `range(1, 5)`: `*`, `**`, `***`, `****`).
+     - Ex 2: Button Parsons Block Assembly (countdown inverted triangle `*****` down to `*` using `range(5, 0, -1)`).
+     - Ex 3: Bug-Fix & Explain (repairing flat rectangle bug `range(1, 5)` and `"*" * 5` to `range(1, 6)` and `"*" * i`).
+     - Ex 4: Challenge Trace Grid (odd-star pyramid pattern `for i in range(1, 5): print("*" * (2 * i - 1))` &rarr; `*`, `***`, `*****`, `*******`).
      - Parallel practice tasks provided for isomorphic remediation.
 
 ---

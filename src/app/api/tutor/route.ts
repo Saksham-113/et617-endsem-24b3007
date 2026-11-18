@@ -68,10 +68,10 @@ EVALUATION RULES:
    - "M1" if they think range(start, stop) includes stop (inclusive upper-bound fallacy).
    - "M2" if they think total = i remembers past values or resets inside the loop (accumulator overwrite).
    - "NONE" if correct.
-   - "OTHER" if wrong due to other arithmetic or logic.
+   - "OTHER" if wrong due to other arithmetic, string multiplication, or pattern logic.
 3. Determine "explanationScore" (0.0 to 1.0):
    - Evaluate the learner's explanation in "${learnerExplanation}".
-   - If the answer is correct and their explanation shows clear reasoning (e.g. explains stopping before the bound, cumulative addition in the accumulator, or condition test), award >= 0.75 (e.g. 0.85 to 0.95).
+   - If the answer is correct and their explanation shows clear reasoning (e.g. explains stopping before the bound, cumulative addition in the accumulator, or string repetition in pattern loops), award >= 0.75 (e.g. 0.85 to 0.95).
    - If their explanation is vague, empty, or shows misconception, award < 0.75.
 4. Compose "aiReply":
    - 2 to 3 sentences in conversational, warm, human tone (first-person plural: "let's", "you noticed", "great work").
@@ -188,11 +188,21 @@ function handleDeterministicFallback(
     : null;
 
   let aiReply = "";
+  const isPattern = !!task.loopConfig?.isPatternLoop;
+
   if (isAdvance) {
     if (explSnippet) {
-      aiReply = `Spot on reasoning, Aarav! You noted: ${explSnippet}. That accurately captures why the loop executes as expected. In ${task.title}, your predicted output cleanly matches the model answer (${task.modelAnswer}). Excellent work!`;
+      if (isPattern) {
+        aiReply = `Spot on reasoning, Aarav! You noted: ${explSnippet}. That accurately captures how Python constructs the pattern row-by-row with string repetition. In ${task.title}, your predicted output cleanly matches the model answer (${task.modelAnswer}). Excellent work!`;
+      } else {
+        aiReply = `Spot on reasoning, Aarav! You noted: ${explSnippet}. That accurately captures why the loop executes as expected. In ${task.title}, your predicted output cleanly matches the model answer (${task.modelAnswer}). Excellent work!`;
+      }
     } else {
-      aiReply = `Brilliant work, Aarav! Your prediction matches the model answer (${task.modelAnswer}). You accurately identified how the variable state updates on each pass.`;
+      if (isPattern) {
+        aiReply = `Brilliant work, Aarav! Your prediction matches the model answer (${task.modelAnswer}). You accurately identified how string repetition prints each row of the pattern.`;
+      } else {
+        aiReply = `Brilliant work, Aarav! Your prediction matches the model answer (${task.modelAnswer}). You accurately identified how the variable state updates on each pass.`;
+      }
     }
   } else if (preliminaryMisconception === "M1") {
     if (explSnippet) {
@@ -211,10 +221,14 @@ function handleDeterministicFallback(
     if (Array.isArray(learnerAnswer)) {
       const lastRow = learnerAnswer[learnerAnswer.length - 1];
       if (lastRow) {
-        answerSummary = ` On your last pass (Pass ${lastRow.passNumber}), you had accumulator = ${lastRow.accumulatorValue || '?'}.`;
+        answerSummary = ` On your last row (Row ${lastRow.passNumber}), you had ${isPattern ? 'stars' : 'accumulator'} = ${lastRow.accumulatorValue || '?'}.`;
       }
     }
-    aiReply = `Let's trace this step-by-step together, Aarav.${answerSummary} Comparing your trace with the model answer (${task.modelAnswer}), the values diverged. Take a breath—every error gives us a clue!`;
+    if (isPattern) {
+      aiReply = `Let's inspect the pattern rows together, Aarav.${answerSummary} Comparing your output with the model answer (${task.modelAnswer}), the rows diverged. Remember: each row prints string multiplication ("*" * counter). Take a breath—every error gives us a clue!`;
+    } else {
+      aiReply = `Let's trace this step-by-step together, Aarav.${answerSummary} Comparing your trace with the model answer (${task.modelAnswer}), the values diverged. Take a breath—every error gives us a clue!`;
+    }
   } else {
     aiReply = `Your answer was correct, Aarav! However, to solidify your confidence, let's strengthen your explanation by describing how the loop counter or accumulator changes from pass to pass.`;
   }

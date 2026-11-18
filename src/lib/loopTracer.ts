@@ -20,7 +20,7 @@ export interface TraceFrame {
 
 export interface LoopProgramConfig {
   initialAccumulatorName?: string;
-  initialAccumulatorValue?: number;
+  initialAccumulatorValue?: number | string;
   loopVar: string;
   rangeStart: number;
   rangeStop: number;
@@ -29,6 +29,9 @@ export interface LoopProgramConfig {
   filterCondition?: (val: number) => boolean;
   filterConditionStr?: string;
   customCodeSnippet?: string;
+  isPatternLoop?: boolean;
+  patternFormula?: (val: number) => string;
+  patternFormulaStr?: string;
   listItems?: string[]; // For looping through lists like ['alice', 'david', 'carolina']
   isWhileLoop?: boolean;
 }
@@ -60,6 +63,72 @@ export function simulatePythonLoop(config: LoopProgramConfig): TraceFrame[] {
   const loopVar = config.loopVar || "value";
 
   let stepCounter = 1;
+
+  // Mode P: Star and Character Pattern Printing
+  if (config.isPatternLoop) {
+    const sequence: number[] = [];
+    if (step > 0) {
+      for (let v = config.rangeStart; v < config.rangeStop; v += step) {
+        sequence.push(v);
+      }
+    } else if (step < 0) {
+      for (let v = config.rangeStart; v > config.rangeStop; v += step) {
+        sequence.push(v);
+      }
+    }
+
+    const patternAccName = config.initialAccumulatorName || "stars";
+    let pass = 0;
+    const formulaStr = config.patternFormulaStr || `"*" * ${loopVar}`;
+    for (let idx = 0; idx < sequence.length; idx++) {
+      const currentVal = sequence[idx];
+      pass++;
+      const stars = config.patternFormula
+        ? config.patternFormula(currentVal)
+        : "*".repeat(Math.max(0, currentVal));
+
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 1,
+        codeLine: `for ${loopVar} in range(${config.rangeStart}, ${config.rangeStop}${config.rangeStep !== undefined ? `, ${config.rangeStep}` : ""}):`,
+        loopVarName: loopVar,
+        loopVarValue: currentVal,
+        accumulatorName: patternAccName,
+        accumulatorValue: stars,
+        explanationNote: `Row ${pass}: ${loopVar} = ${currentVal} (halts before stop value ${config.rangeStop}).`,
+      });
+
+      frames.push({
+        stepIndex: stepCounter++,
+        passNumber: pass,
+        lineNumber: 2,
+        codeLine: `    print(${formulaStr})`,
+        loopVarName: loopVar,
+        loopVarValue: currentVal,
+        accumulatorName: patternAccName,
+        accumulatorValue: stars,
+        printedOutput: stars,
+        explanationNote: `Row ${pass} Output: evaluates ${formulaStr} to "${stars}" (${stars.length} stars).`,
+      });
+    }
+
+    frames.push({
+      stepIndex: stepCounter++,
+      passNumber: pass + 1,
+      lineNumber: 3,
+      codeLine: `# Loop terminated`,
+      loopVarName: loopVar,
+      loopVarValue: sequence.length > 0 ? sequence[sequence.length - 1] : 0,
+      accumulatorName: patternAccName,
+      accumulatorValue: "Complete",
+      printedOutput: "Complete",
+      explanationNote: `Pattern finished all ${pass} rows. Halts right before reaching stop bound ${config.rangeStop}.`,
+      isStopBoundary: true,
+    });
+
+    return frames;
+  }
 
   // Frame 1: Initialization line
   frames.push({
@@ -371,14 +440,17 @@ export function findDivergenceStep(
 
       if (lAcc !== expAcc) {
         const isOverwrite = lAcc === expVar;
+        const isPattern = typeof expected.accumulator === "string" && expected.accumulator.includes("*");
         return {
           hasDiverged: true,
           divergencePass: p,
           field: "accumulator",
           learnerValue: learner.accumulatorValue,
           actualValue: expected.accumulator,
-          diagnosedMisconception: isOverwrite ? "M2" : "PREREQ",
-          explanationMessage: isOverwrite
+          diagnosedMisconception: isPattern ? "OTHER" : isOverwrite ? "M2" : "PREREQ",
+          explanationMessage: isPattern
+            ? `On Row ${p}, Python evaluates the formula to "${expected.accumulator}" (${String(expected.accumulator).length} stars), but you entered "${learner.accumulatorValue}".`
+            : isOverwrite
             ? `On Pass ${p}, you wrote ${accName(actualFrames)} = ${learner.accumulatorValue}. That replaced the previous sum instead of adding to it (variable reassignment vs. accumulation)!`
             : `On Pass ${p}, the running total should be ${expected.accumulator}, but you entered ${learner.accumulatorValue}.`,
         };

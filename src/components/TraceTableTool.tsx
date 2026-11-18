@@ -50,13 +50,15 @@ export default function TraceTableTool({
     loopConfig.accumulatorOperation,
     JSON.stringify(loopConfig.listItems),
     loopConfig.isWhileLoop,
+    loopConfig.isPatternLoop,
+    loopConfig.patternFormulaStr,
   ]);
 
   const [currentStep, setCurrentStep] = useState<number>(0);
   const [viewMode, setViewMode] = useState<"step" | "predict">(readOnly ? "step" : "predict");
 
   // Reset current step only when config changes structurally
-  const configSignature = `${loopConfig.rangeStart}-${loopConfig.rangeStop}-${loopConfig.rangeStep}-${loopConfig.loopVar}-${loopConfig.accumulatorOperation}-${(loopConfig.listItems || []).join(",")}-${loopConfig.isWhileLoop}`;
+  const configSignature = `${loopConfig.rangeStart}-${loopConfig.rangeStop}-${loopConfig.rangeStep}-${loopConfig.loopVar}-${loopConfig.accumulatorOperation}-${(loopConfig.listItems || []).join(",")}-${loopConfig.isWhileLoop}-${loopConfig.isPatternLoop}-${loopConfig.patternFormulaStr}`;
 
   // Learner input rows for Trace Table mode
   const [rows, setRows] = useState<LearnerTraceRow[]>(() => {
@@ -293,6 +295,57 @@ export default function TraceTableTool({
       );
     }
 
+    if (loopConfig.isPatternLoop) {
+      return (
+        <div className="space-y-1.5 font-mono text-xs">
+          <div
+            className={`flex items-center px-2 py-1 rounded transition ${
+              viewMode === "step" && activeFrame?.lineNumber === 1
+                ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                : "text-slate-300"
+            }`}
+          >
+            <span className="text-slate-600 w-5 select-none text-[11px]">1</span>
+            <span>
+              <span className="text-[#CBA6F7]">for </span>
+              <span className="text-[#CDD6F4]">{lVar}</span>
+              <span className="text-[#CBA6F7]"> in </span>
+              <span className="text-[#89B4FA]">range</span>
+              <span className="text-slate-400">(</span>
+              <span className="text-[#FAB387]">{loopConfig.rangeStart}</span>
+              <span className="text-slate-400">, </span>
+              <span className="text-[#FAB387]">{loopConfig.rangeStop}</span>
+              {loopConfig.rangeStep !== undefined && (
+                <>
+                  <span className="text-slate-400">, </span>
+                  <span className="text-[#FAB387]">{loopConfig.rangeStep}</span>
+                </>
+              )}
+              <span className="text-slate-400">):</span>
+            </span>
+          </div>
+
+          <div
+            className={`flex items-center px-2 py-1 rounded transition ${
+              viewMode === "step" && activeFrame?.lineNumber === 2
+                ? "bg-indigo-950 text-white border-l-2 border-indigo-400 font-semibold"
+                : "text-slate-300"
+            }`}
+          >
+            <span className="text-slate-600 w-5 select-none text-[11px]">2</span>
+            <span className="pl-4">
+              <span className="text-[#89B4FA]">print</span>
+              <span className="text-slate-400">(</span>
+              <span className="text-[#A6E3A1]">
+                {loopConfig.patternFormulaStr || `"*" * ${lVar}`}
+              </span>
+              <span className="text-slate-400">)</span>
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     // Standard for ... in range(...)
     return (
       <div className="space-y-1.5 font-mono text-xs">
@@ -521,7 +574,9 @@ export default function TraceTableTool({
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-center shadow-2xs">
                   <div className="text-[11px] font-mono text-slate-500 font-medium">
-                    Accumulator `{activeFrame?.accumulatorName || "total"}`
+                    {loopConfig.isPatternLoop
+                      ? "Row Printed Output"
+                      : `Accumulator \`${activeFrame?.accumulatorName || "total"}\``}
                   </div>
                   <div className="text-2xl font-bold font-mono text-emerald-600 mt-1">
                     {activeFrame ? String(activeFrame.accumulatorValue) : "-"}
@@ -572,7 +627,7 @@ export default function TraceTableTool({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-slate-600 pb-1.5 border-b border-slate-100">
                 <span className="font-semibold text-slate-800">
-                  Fill in values for each pass:
+                  {loopConfig.isPatternLoop ? "Fill in star output for each row:" : "Fill in values for each pass:"}
                 </span>
                 <span className="text-[11px] text-slate-500">
                   {loopConfig.rangeStop ? `Stops before ${loopConfig.rangeStop}` : "Trace each pass"}
@@ -600,7 +655,7 @@ export default function TraceTableTool({
                           {row.passNumber}
                         </span>
                         <span className="text-xs font-semibold text-slate-700">
-                          Pass {row.passNumber}
+                          {loopConfig.isPatternLoop ? `Row ${row.passNumber}` : `Pass ${row.passNumber}`}
                         </span>
                       </div>
 
@@ -630,8 +685,8 @@ export default function TraceTableTool({
                             onChange={(e) =>
                               handleRowChange(row.passNumber, "accumulatorValue", e.target.value)
                             }
-                            placeholder="?"
-                            className="w-14 px-2 py-1 text-center font-mono text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                            placeholder={loopConfig.isPatternLoop ? "e.g. *" : "?"}
+                            className="w-16 px-2 py-1 text-center font-mono text-xs rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                           />
                         </div>
                       </div>
@@ -672,7 +727,11 @@ export default function TraceTableTool({
                   rows={2}
                   value={explanation}
                   onChange={(e) => setExplanation(e.target.value)}
-                  placeholder="e.g. range(1, 4) stops right before 4, and total accumulates each value 1 + 2 + 3 = 6..."
+                  placeholder={
+                    loopConfig.isPatternLoop
+                      ? "e.g. range(1, 5) stops right before 5, printing rows with 1, 2, 3, and 4 stars..."
+                      : "e.g. range(1, 4) stops right before 4, and total accumulates each value 1 + 2 + 3 = 6..."
+                  }
                   className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
