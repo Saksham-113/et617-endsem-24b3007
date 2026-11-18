@@ -1,30 +1,26 @@
 import React from "react";
 import Link from "next/link";
-import { ShieldCheck, BookOpen, Clock, HeartHandshake } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="w-full border-t border-stone-border bg-[#FAF8F5] py-4 px-6 text-sm text-ink-light">
-      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+    <footer className="w-full border-t border-slate-200/80 bg-white py-3.5 px-6 text-xs text-slate-500">
+      <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-ink">Roll No / Identity Token:</span>
-          <span className="font-mono bg-white px-2 py-0.5 rounded border border-stone-border text-calm-indigo font-bold shadow-sm">
-            24b3007
-          </span>
-          <span className="text-xs text-ink-faint">| CBSE Cl. 10 Python Loops</span>
+          <span className="font-semibold text-slate-800 tracking-tight">LoopStep</span>
+          <span className="text-slate-300">·</span>
+          <span>Interactive Python Tutor</span>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
-          <span className="flex items-center gap-1 text-ink-light">
-            <span className="w-2 h-2 rounded-full bg-calm-green inline-block animate-pulse"></span>
-            Card: P4 · T10 · L5 · C4
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px] font-medium">
+            24b3007
           </span>
+          <span className="text-slate-300">·</span>
           <Link
             href="/about"
-            className="text-calm-indigo hover:underline font-medium flex items-center gap-1 bg-white px-2.5 py-1 rounded border border-stone-border shadow-xs"
+            className="text-indigo-600 hover:text-indigo-800 transition font-medium"
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            About & AI Spec (D6)
+            About & Architecture
           </Link>
         </div>
       </div>

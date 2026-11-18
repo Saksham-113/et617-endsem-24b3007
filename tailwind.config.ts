@@ -9,36 +9,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: {
-          50: "#FAF8F5",
-          100: "#F5F2EB",
-          200: "#EBE6DD",
-        },
-        stone: {
-          border: "#E7E5E4",
-          subtle: "#F5F5F4",
-          muted: "#78716C",
-        },
-        ink: {
-          DEFAULT: "#1C1917",
-          light: "#44403C",
-          faint: "#A8A29E",
-        },
-        calm: {
-          green: "#15803D",
-          greenBg: "#DCFCE7",
-          greenBorder: "#86EFAC",
-          amber: "#B45309",
-          amberBg: "#FEF3C7",
-          amberBorder: "#FDE68A",
-          indigo: "#3730A3",
-          indigoBg: "#EEF2FF",
-          indigoBorder: "#C7D2FE",
+        editor: {
+          bg: "#181825",
+          gutter: "#222233",
+          active: "#2A2A3C",
+          text: "#CDD6F4",
+          comment: "#6C7086",
+          keyword: "#CBA6F7",
+          number: "#FAB387",
+          string: "#A6E3A1",
+          function: "#89B4FA",
+          operator: "#89DCEB",
         },
       },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "monospace"],
+        sans: [
+          "Inter",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
+        mono: [
+          "JetBrains Mono",
+          "Fira Code",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "monospace",
+        ],
       },
     },
   },

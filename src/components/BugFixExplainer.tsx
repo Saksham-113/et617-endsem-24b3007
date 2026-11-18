@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, AlertTriangle, MessageSquare, Lightbulb, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles, Bug, ArrowRight } from "lucide-react";
 
 interface BugFixExplainerProps {
   buggyCode: string;
@@ -19,30 +19,22 @@ export default function BugFixExplainer({
     {
       id: "opt_both",
       label: "Change range(1, 5) to range(1, 6) AND change total = i to total = total + i",
-      detail: "Fixes both the exclusive stop-bound off-by-one AND the accumulator overwrite.",
-      correct: true,
-      misconception: "NONE",
+      detail: "Fixes the exclusive stop bound and replaces overwrite with accumulator update.",
     },
     {
       id: "opt_m1_only",
       label: "Only change range(1, 5) to range(1, 6); leave total = i as is",
-      detail: "Addresses the stop boundary, but total will still overwrite to 5 at the end.",
-      correct: false,
-      misconception: "M2",
+      detail: "Addresses the loop bound, but total will still overwrite to 5 at the end.",
     },
     {
       id: "opt_m2_only",
       label: "Only change total = i to total = total + i; leave range(1, 5) as is",
-      detail: "Addresses the accumulator, but loop stops at 4 (sum becomes 10 instead of 15).",
-      correct: false,
-      misconception: "M1",
+      detail: "Fixes accumulator update, but loop still stops at 4 (sum becomes 10 instead of 15).",
     },
     {
       id: "opt_reset_inside",
       label: "Add total = 0 inside the loop body before total = total + i",
-      detail: "Resets the running total back to zero on every iteration pass.",
-      correct: false,
-      misconception: "M2",
+      detail: "Resets the total back to 0 on every single iteration pass.",
     },
   ];
 
@@ -53,41 +45,43 @@ export default function BugFixExplainer({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-stone-border shadow-xs overflow-hidden my-4">
-      <div className="bg-[#F5F2EB] px-4 py-3 border-b border-stone-border flex items-center justify-between">
+    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden my-5">
+      <div className="bg-slate-50 border-b border-slate-200/80 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-calm-indigo" />
-          <h3 className="font-semibold text-sm text-ink">
-            Bug-Fix & Plain-English Explanation (Format C)
+          <Bug className="w-4 h-4 text-amber-500" />
+          <h3 className="font-semibold text-xs text-slate-800">
+            Debug & Explain Challenge
           </h3>
         </div>
-        <span className="text-xs text-ink-faint">Evaluate mental models beyond MCQ</span>
+        <span className="text-[11px] text-slate-500 font-mono">
+          Expected output: 15 · Actual: 4
+        </span>
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 space-y-4 text-xs">
-        {/* Buggy Snippet Inspection */}
+        {/* Code Diff Display */}
         <div>
-          <label className="font-medium text-ink block mb-1.5">Buggy Python Code:</label>
-          <div className="p-3 bg-paper-50 rounded-lg border border-stone-border font-mono text-xs text-ink overflow-x-auto">
-            <pre>{buggyCode}</pre>
+          <label className="font-semibold text-slate-700 block mb-1.5">
+            Buggy Code:
+          </label>
+          <div className="p-3 bg-[#181825] rounded-xl font-mono text-xs text-slate-300 border border-slate-800 overflow-x-auto">
+            <pre className="text-slate-200">{buggyCode}</pre>
           </div>
-          <p className="text-[11px] text-ink-light mt-1">
-            Goal: Sum numbers 1 through 5 (expected output: <code className="text-calm-green">15</code>).
-            Current output: <code className="text-calm-amber">4</code>.
-          </p>
         </div>
 
-        {/* Fix Selector */}
+        {/* Fix Selection */}
         <div>
-          <label className="font-medium text-ink block mb-2">Step 1: Choose the correct repair:</label>
+          <label className="font-semibold text-slate-700 block mb-2">
+            1. Which repair fixes both bugs?
+          </label>
           <div className="space-y-2">
             {fixOptions.map((opt) => (
               <label
                 key={opt.id}
-                className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition ${
+                className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${
                   selectedFix === opt.id
-                    ? "bg-calm-indigoBg/40 border-calm-indigo ring-1 ring-calm-indigo"
-                    : "bg-white border-stone-border hover:bg-paper-50"
+                    ? "bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-300"
+                    : "bg-slate-50/70 border-slate-200 hover:border-slate-300"
                 }`}
               >
                 <input
@@ -96,50 +90,44 @@ export default function BugFixExplainer({
                   value={opt.id}
                   checked={selectedFix === opt.id}
                   onChange={() => setSelectedFix(opt.id)}
-                  className="mt-0.5 text-calm-indigo focus:ring-calm-indigo"
+                  className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div>
-                  <div className="font-semibold text-ink">{opt.label}</div>
-                  <div className="text-[11px] text-ink-light mt-0.5">{opt.detail}</div>
+                  <div className="font-semibold text-slate-800">{opt.label}</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">{opt.detail}</div>
                 </div>
               </label>
             ))}
           </div>
         </div>
 
-        {/* Free-Text Explanation */}
+        {/* Explanation Input */}
         <div>
-          <label className="font-medium text-ink block mb-1">
-            Step 2: Explain in your own words (1–2 sentences):
+          <label className="font-semibold text-slate-700 block mb-1">
+            2. In your own words, why did the original code fail? (1–2 sentences)
           </label>
-          <p className="text-[11px] text-ink-faint mb-2">
-            Why did the original code print 4? What was happening inside the loop and at the stop boundary?
-          </p>
           <textarea
-            rows={3}
+            rows={2}
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
-            placeholder="e.g. The loop stopped before 5 because range stops early, and total = i kept overwriting the previous numbers instead of adding them..."
-            className="w-full p-2.5 rounded-lg border border-stone-border bg-white text-xs text-ink focus:border-calm-indigo focus:ring-1 focus:ring-calm-indigo"
+            placeholder="e.g. range(1, 5) stopped before reaching 5, and total = i kept replacing the running sum..."
+            className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
-          <div className="flex justify-between items-center text-[10px] text-ink-faint mt-1">
-            <span>Our AI tutor evaluates your reasoning, not just your code!</span>
-            <span>{explanation.length} characters</span>
-          </div>
         </div>
 
-        <div className="pt-2 flex justify-end">
+        {/* Submit */}
+        <div className="pt-1 flex justify-end">
           <button
             type="submit"
             disabled={!selectedFix || isLoading}
-            className="px-5 py-2.5 bg-calm-indigo hover:bg-indigo-700 text-white font-medium rounded-lg text-xs transition shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs transition shadow-xs flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <Sparkles className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <CheckCircle2 className="w-3.5 h-3.5" />
             )}
-            <span>{isLoading ? "AI Evaluating Reason..." : "Submit Fix & Explanation"}</span>
+            <span>{isLoading ? "Evaluating..." : "Submit Solution"}</span>
           </button>
         </div>
       </form>
